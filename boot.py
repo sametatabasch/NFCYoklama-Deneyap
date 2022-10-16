@@ -21,13 +21,16 @@ def connect_wifi():
 
 
 connect_wifi()
+try:
 
-while True:
-    islem = input("İşlem seçin: 1- Okuma, 2- Yazma, 0- çıkış")
-    if(islem =='1'):
-        NFCRead.do_read()
-    elif(islem=='2'):
-        NFCWrite.do_write()
-    else:
-        break
+    while True:
+        islem = input("İşlem seçin: 1- Okuma, 2- Yazma, 0- çıkış\n")
+        if (islem == '1'):
+            NFCRead.do_read()
+        elif (islem == '2'):
+            NFCWrite.do_write()
+        else:
+            break
 
+except KeyboardInterrupt:
+    print("İşlem Sonlandırıldı ")

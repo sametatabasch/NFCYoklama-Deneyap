@@ -1,8 +1,9 @@
 # NFCRead.py -- put your code here!
 from lib import mfrc522
 from machine import Pin, SPI
-from utime import ticks_ms
+from utime import sleep
 import deneyap
+from config import uidlist
 
 
 def do_read():
@@ -24,31 +25,13 @@ def do_read():
             (stat, raw_uid) = rdr.anticoll()
 
             if stat == rdr.OK:
-                print("Kart Okundu")
                 waiting_to_read = False
-                print("type: 0x%02x" % tag_type)
-                print("uid: 0x%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3]))
-                for i in raw_uid:
-                    print(i)
-                    print("0x%02x" % i)
-                print("")
-
+                uid = "0x%02x%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3], raw_uid[4])
+                print( uid,"idli kart okundu")
+                '''
                 if rdr.select_tag(raw_uid) == rdr.OK:
-
-                    key = b'\xff\xff\xff\xff\xff\xff'
-
-                    ms = ticks_ms()
-
-                    blockArray = bytearray(16)
-                    for sector in range(1, 64):
-                        if rdr.auth(rdr.AUTHENT1A, sector, key, raw_uid) == rdr.OK:
-                            rdr.read(sector, into=blockArray)
-                            print("data@%d: %s" % (sector, blockArray))
-                        else:
-                            print("Auth err - Sector",sector)
-                    rdr.stop_crypto1()
-
-                    print("Read in " + str(ticks_ms() - ms))  # took 4594 ms
-
+                    print(uidlist[uid], "Okundu")
                 else:
                     print("Select failed")
+                '''
+        sleep(0.5)
