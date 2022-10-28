@@ -15,6 +15,7 @@ Pbuzzer = Pin(deneyap.D15, Pin.OUT)
 
 
 def do_read():
+    print("so_read")
     spi = SPI(1, baudrate=2500000, polarity=0, phase=0, miso=Pmiso, mosi=Pmosi, sck=Psck)
     spi.init()
     rdr = mfrc522.MFRC522(spi=spi, gpioRst=deneyap.D0, gpioCs=deneyap.SDA)
@@ -24,6 +25,7 @@ def do_read():
     buzzer.freq(1047)
 
     while True:
+        print("döngü")
         if not waiting_to_read:
             print("Kart Okutun")
             waiting_to_read = True
@@ -31,7 +33,7 @@ def do_read():
         (stat, tag_type) = rdr.request(rdr.REQIDL)
 
         if stat == rdr.OK:
-
+            print("kart algılandı")
             (stat, raw_uid) = rdr.anticoll()
 
             if stat == rdr.OK:

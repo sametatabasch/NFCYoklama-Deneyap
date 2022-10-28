@@ -4,6 +4,8 @@ import NFCWrite
 import config
 import network
 import time
+from NFCAttendance import NFCAttendance
+
 
 wlan = None
 
@@ -22,13 +24,15 @@ def connect_wifi():
 
 connect_wifi()
 try:
-
+    app = NFCAttendance()
     while True:
         islem = input("İşlem seçin: 1- Okuma, 2- Yazma, 0- çıkış\n")
         if (islem == '1'):
             NFCRead.do_read()
         elif (islem == '2'):
-            NFCWrite.do_write()
+            app.LCD.clear()
+            app.write_lesson_name()
+            app.write_waiting_message()
         else:
             break
 
