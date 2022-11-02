@@ -12,8 +12,6 @@ from time import sleep
 wlan = None
 
 
-
-
 class NFCAttendance():
     LCD, NFC = '', ''
 
@@ -23,24 +21,18 @@ class NFCAttendance():
         pin_sck = Pin(deneyap.SCK)
 
         nfc_spi = SPI(1, baudrate=2500000, polarity=0, phase=0, miso=pin_miso, mosi=pin_mosi, sck=pin_sck)
-        lcd_spi = SPI(2, baudrate=2000000, polarity=0, phase=0, miso=pin_miso, mosi=pin_mosi, sck=pin_sck)
         nfc_spi.init()
-        # lcd_spi.init()
-        self.NFC = MFRC522(spi=nfc_spi, gpioRst=deneyap.D14, gpioCs=deneyap.SDA)
+        self.NFC = MFRC522(spi=nfc_spi, gpioRst=deneyap.D0, gpioCs=deneyap.SDA)
+
+        lcd_mosi = Pin(deneyap.D15)
+        lcd_sck = Pin(deneyap.D1)
+        lcd_spi = SPI(2, baudrate=2000000, polarity=0, phase=0, mosi=lcd_mosi, sck=lcd_sck)
+        lcd_spi.init()
         lcd_cs = Pin(deneyap.D13)
-        lcd_dc = Pin(deneyap.D12)
-        lcd_rst = Pin(deneyap.D1)
+        lcd_dc = Pin(deneyap.D14)
+        lcd_rst = Pin(deneyap.D12)
         self.LCD = PCD8544_FRAMEBUF(spi=lcd_spi, cs=lcd_cs, dc=lcd_dc, rst=lcd_rst)
         self.connect_wifi()
-
-    def write_lesson_name(self):
-        lesson_name = "BILP-100"
-        self.write_nth_row_center(lesson_name, 1)
-
-    def write_waiting_message(self):
-        self.write_nth_row_center("Yoklama", 2)
-        self.write_nth_row_center("Icin", 3)
-        self.write_nth_row_center("Kart Okut", 5)
 
     def center(self, msg):
         """
@@ -50,15 +42,19 @@ class NFCAttendance():
         """
         return (self.LCD.width - len(msg) * 8) // 2
 
-    def write_nth_row_center(self, msg, n):
+    def show_lcd(self, rows: list):
         """
-        write LCD nth rpw
-        :param msg: string to write LCD
-        :param n: LCD row number 1-6
+
+        :param rows: list: [[msg, x],... ] for centered text x= -1
         :return:
         """
-        self.LCD.text(msg, self.center(msg), (n - 1) * 8, 1)
-        self.LCD.show()
+        self.LCD.clear()
+        row_num = 1
+        for row in rows:
+            if len(row) > 0:
+                self.LCD.text(row[0], self.center(row[0]) if row[1] == -1 else row[1], (row_num - 1) * 8, 1)
+                self.LCD.show()
+            row_num += 1
 
     def read_student_card(self):
         waiting_to_read = False
