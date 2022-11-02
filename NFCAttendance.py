@@ -15,12 +15,12 @@ wlan = None
 class NFCAttendance():
     LCD, NFC = '', ''
     lcd_rows = [
-        ['', -1],
         ["", -1],
-        ["", -1],
-        ["", -1],
-        ["", -1],
-        ["", -1]
+        ["----------", -1],
+        ["Yoklama", -1],
+        ["Icin", -1],
+        ["Kart Okut", -1],
+        ["----------", -1]
     ]
 
     def __init__(self):
@@ -41,6 +41,7 @@ class NFCAttendance():
         lcd_rst = Pin(deneyap.D12)
         self.LCD = PCD8544_FRAMEBUF(spi=lcd_spi, cs=lcd_cs, dc=lcd_dc, rst=lcd_rst)
         self.connect_wifi()
+        self.set_lesson_name()
 
     def center(self, msg):
         """
@@ -63,6 +64,13 @@ class NFCAttendance():
                 self.LCD.text(row[0], self.center(row[0]) if row[1] == -1 else row[1], (row_num - 1) * 8, 1)
                 self.LCD.show()
             row_num += 1
+
+    def set_lesson_name(self):
+        """
+        todo internet bağlantısı ile api üzerinden ders adı alınacak
+        :return:
+        """
+        self.lcd_rows[0] = ['BILP-100', -1]
 
     def read_student_card(self):
         waiting_to_read = False
