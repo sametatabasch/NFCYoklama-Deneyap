@@ -14,6 +14,14 @@ wlan = None
 
 class NFCAttendance():
     LCD, NFC = '', ''
+    lcd_rows = [
+        ['', -1],
+        ["", -1],
+        ["", -1],
+        ["", -1],
+        ["", -1],
+        ["", -1]
+    ]
 
     def __init__(self):
         pin_miso = Pin(deneyap.MISO)
@@ -42,7 +50,7 @@ class NFCAttendance():
         """
         return (self.LCD.width - len(msg) * 8) // 2
 
-    def show_lcd(self, rows: list):
+    def show_lcd(self):
         """
 
         :param rows: list: [[msg, x],... ] for centered text x= -1
@@ -50,7 +58,7 @@ class NFCAttendance():
         """
         self.LCD.clear()
         row_num = 1
-        for row in rows:
+        for row in self.lcd_rows:
             if len(row) > 0:
                 self.LCD.text(row[0], self.center(row[0]) if row[1] == -1 else row[1], (row_num - 1) * 8, 1)
                 self.LCD.show()

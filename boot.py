@@ -3,7 +3,7 @@ from NFCAttendance import NFCAttendance
 
 try:
     app = NFCAttendance()
-    lcd_rows = [
+    app.lcd_rows = [
         ['BILP-100', -1],
         ["----------",-1],
         ["Yoklama", -1],
@@ -11,7 +11,7 @@ try:
         ["Kart Okut",-1],
         ["----------",-1]
     ]
-    app.show_lcd(lcd_rows)
+    app.show_lcd()
 
     # app.read_student_card()
 
