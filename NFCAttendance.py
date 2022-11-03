@@ -87,6 +87,10 @@ class NFCAttendance():
                 if stat == self.NFC.OK:
                     waiting_to_read = False
                     uid = "0x%02x%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3], raw_uid[4])
+                    self.lcd_rows[2] = ["Kart Okundu", -1]
+                    self.lcd_rows[3] = [uid, -1]
+                    self.show_lcd()
+
                     print(uid, "idli kart okundu")
                     '''
                     if rdr.select_tag(raw_uid) == rdr.OK:
