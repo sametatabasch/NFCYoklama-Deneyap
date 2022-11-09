@@ -199,3 +199,7 @@ class PCD8544_FRAMEBUF(PCD8544):
 
 	def show(self):
 		self.data(self.buf)
+
+	def fclear(self):
+		super().clear()
+		self.fill(0)

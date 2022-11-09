@@ -40,7 +40,7 @@ class NFCAttendance():
         lcd_dc = Pin(deneyap.D14)
         lcd_rst = Pin(deneyap.D12)
         self.LCD = PCD8544_FRAMEBUF(spi=lcd_spi, cs=lcd_cs, dc=lcd_dc, rst=lcd_rst)
-        self.connect_wifi()
+        self.connect_wifi(self)
         self.set_lesson_name()
 
     def center(self, msg):
@@ -57,13 +57,14 @@ class NFCAttendance():
         :param rows: list: [[msg, x],... ] for centered text x= -1
         :return:
         """
-        self.LCD.clear()
+        self.LCD.fclear()
         row_num = 1
         for row in self.lcd_rows:
             if len(row) > 0:
                 self.LCD.text(row[0], self.center(row[0]) if row[1] == -1 else row[1], (row_num - 1) * 8, 1)
-                self.LCD.show()
+
             row_num += 1
+        self.LCD.show()
 
     def set_lesson_name(self):
         """
@@ -73,6 +74,10 @@ class NFCAttendance():
         self.lcd_rows[0] = ['BILP-100', -1]
 
     def read_student_card(self):
+        self.lcd_rows[2] = ["Yoklama", -1]
+        self.lcd_rows[3] = ["Icin", -1]
+        self.lcd_rows[4] = ["Kart Okut", -1]
+        self.show_lcd()
         waiting_to_read = False
         while True:
             if not waiting_to_read:
@@ -100,13 +105,17 @@ class NFCAttendance():
                     '''
 
     @staticmethod
-    def connect_wifi():
+    def connect_wifi(self):
         global wlan
         wlan = network.WLAN(network.STA_IF)  # create a wlan object
         wlan.active(True)  # Activate the network interface
         wlan.disconnect()  # Disconnect the last connected WiFi
         wlan.connect(config.wifi['ssid'], config.wifi['password'])  # connect wifi
         while (wlan.ifconfig()[0] == '0.0.0.0'):
+            self.lcd_rows[2] = ["Internet'e", -1]
+            self.lcd_rows[3] = ["Baglaniyor", -1]
+            self.lcd_rows[4] = ["", -1]
+            self.show_lcd()
             sleep(1)
             pass
         return True

@@ -1,3 +1,6 @@
+"""
+https://github.com/cefn/micropython-mfrc522/blob/master/mfrc522.py
+"""
 from machine import Pin, SPI
 from os import uname
 
