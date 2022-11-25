@@ -80,7 +80,11 @@ class NFCAttendance():
         """
         self.lcd_rows[0] = ['BILP-100', -1]
 
-    def read_student_card(self):
+    def read_student_card_uid(self):
+        """
+
+        :return: string uid
+        """
         self.lcd_rows[2] = ["Yoklama", -1]
         self.lcd_rows[3] = ["Icin", -1]
         self.lcd_rows[4] = ["Kart Okut", -1]
@@ -99,15 +103,31 @@ class NFCAttendance():
 
                 if stat == self.NFC.OK:
                     waiting_to_read = False
-                    uid = "0x%02x%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3], raw_uid[4])
+                    uid = "%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3])
                     self.NFC.stop_crypto1()
                     self.NFC_SPI.deinit()
-                    self.lcd_rows[2] = ["Kart Okundu", -1]
-                    self.lcd_rows[3] = [uid, -1]
-                    self.show_lcd()
-
-                    print(uid, "idli kart okundu")
                     break
+        return uid
+
+    def show_student_name(self):
+        std_list = {
+            "93bdd50b": "Samet ATABAS",
+            "3413fc51": "Kart 1",
+            "2aca190b": "Kart 2",
+            "d226d935": "Dis",
+            "d56ef659": "Personel"
+        }
+        while True:
+            std_uid = self.read_student_card_uid()
+            print(std_uid)
+            try:
+                self.lcd_rows[2] = ["", -1]
+                self.lcd_rows[3] = [std_list.get(std_uid), -1]
+                self.lcd_rows[4] = ["", -1]
+                self.show_lcd()
+                sleep(1)
+            except Exception as e:
+                print(e.args)
 
     @staticmethod
     def connect_wifi(self):

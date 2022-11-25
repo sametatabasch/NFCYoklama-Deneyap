@@ -4,8 +4,7 @@ from NFCAttendance import NFCAttendance
 try:
     app = NFCAttendance()
 
-
-    app.read_student_card()
+    app.show_student_name()
 
 except KeyboardInterrupt:
     print("İşlem Sonlandırıldı ")
