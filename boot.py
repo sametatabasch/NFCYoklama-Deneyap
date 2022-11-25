@@ -6,6 +6,6 @@ try:
 
 
     app.read_student_card()
-    app.LCD.clear()
+
 except KeyboardInterrupt:
     print("İşlem Sonlandırıldı ")

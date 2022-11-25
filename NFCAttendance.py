@@ -14,6 +14,7 @@ wlan = None
 
 class NFCAttendance():
     LCD, NFC = '', ''
+    LCD_SPI, NFC_SPI = "", ""
     lcd_rows = [
         ["", -1],
         ["----------", -1],
@@ -28,18 +29,22 @@ class NFCAttendance():
         pin_mosi = Pin(deneyap.MOSI)
         pin_sck = Pin(deneyap.SCK)
 
-        nfc_spi = SPI(1, baudrate=2500000, polarity=0, phase=0, miso=pin_miso, mosi=pin_mosi, sck=pin_sck)
-        nfc_spi.init()
-        self.NFC = MFRC522(spi=nfc_spi, gpioRst=deneyap.D0, gpioCs=deneyap.SDA)
+        self.NFC_SPI = SPI(1, baudrate=2500000, polarity=0, phase=0, miso=pin_miso, mosi=pin_mosi, sck=pin_sck)
+        self.NFC_SPI.init()
+        self.NFC = MFRC522(spi=self.NFC_SPI, gpioRst=deneyap.D0, gpioCs=deneyap.SDA)
 
         lcd_mosi = Pin(deneyap.D15)
         lcd_sck = Pin(deneyap.D1)
-        lcd_spi = SPI(2, baudrate=2000000, polarity=0, phase=0, mosi=lcd_mosi, sck=lcd_sck)
-        lcd_spi.init()
+        self.LCD_SPI = SPI(2, baudrate=2000000, polarity=0, phase=0, mosi=lcd_mosi, sck=lcd_sck)
+        self.LCD_SPI.init()
         lcd_cs = Pin(deneyap.D13)
         lcd_dc = Pin(deneyap.D14)
         lcd_rst = Pin(deneyap.D12)
-        self.LCD = PCD8544_FRAMEBUF(spi=lcd_spi, cs=lcd_cs, dc=lcd_dc, rst=lcd_rst)
+        self.LCD = PCD8544_FRAMEBUF(spi=self.LCD_SPI, cs=lcd_cs, dc=lcd_dc, rst=lcd_rst)
+
+        self.NFC_SPI.deinit()
+        self.LCD_SPI.deinit()
+
         self.connect_wifi(self)
         self.set_lesson_name()
 
@@ -57,6 +62,7 @@ class NFCAttendance():
         :param rows: list: [[msg, x],... ] for centered text x= -1
         :return:
         """
+        self.LCD_SPI.init()
         self.LCD.fclear()
         row_num = 1
         for row in self.lcd_rows:
@@ -65,6 +71,7 @@ class NFCAttendance():
 
             row_num += 1
         self.LCD.show()
+        self.LCD_SPI.deinit()
 
     def set_lesson_name(self):
         """
@@ -78,6 +85,7 @@ class NFCAttendance():
         self.lcd_rows[3] = ["Icin", -1]
         self.lcd_rows[4] = ["Kart Okut", -1]
         self.show_lcd()
+        self.NFC_SPI.init()
         waiting_to_read = False
         while True:
             if not waiting_to_read:
@@ -92,18 +100,13 @@ class NFCAttendance():
                 if stat == self.NFC.OK:
                     waiting_to_read = False
                     uid = "0x%02x%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3], raw_uid[4])
+                    self.NFC.stop_crypto1()
+                    self.NFC_SPI.deinit()
                     self.lcd_rows[2] = ["Kart Okundu", -1]
                     self.lcd_rows[3] = [uid, -1]
                     self.show_lcd()
 
                     print(uid, "idli kart okundu")
-                    '''
-                    if rdr.select_tag(raw_uid) == rdr.OK:
-                        print(uidlist[uid], "Okundu")
-                    else:
-                        print("Select failed")
-                    '''
-                    self.NFC.stop_crypto1()
                     break
 
     @staticmethod
