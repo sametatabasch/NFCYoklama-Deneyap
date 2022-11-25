@@ -103,6 +103,8 @@ class NFCAttendance():
                     else:
                         print("Select failed")
                     '''
+                    self.NFC.stop_crypto1()
+                    break
 
     @staticmethod
     def connect_wifi(self):
