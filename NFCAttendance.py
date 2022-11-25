@@ -7,9 +7,39 @@ from machine import Pin, SPI
 import deneyap
 import network
 import config
-from time import sleep
+from time import sleep, time, gmtime
+import ntptime
 
 wlan = None
+
+
+def set_time():
+    # if needed, overwrite default time server
+    ntptime.host = "1.tr.pool.ntp.org"
+
+    try:
+        ntptime.settime()
+    except Exception as err:
+        print("Error syncing time")
+        print(err.args)
+
+
+def tr_time():
+    """
+
+    :return: tuple (year, month, mday, hour, minute, second, weekday, yearday)
+    """
+    tm = gmtime(time() + 10800)  # UTC+3
+    return {
+        "year": tm[0],
+        "month": tm[1],
+        "mday": tm[2],
+        "hour": tm[3],
+        "minute": tm[4],
+        "second": tm[5],
+        "weekday": tm[6],
+        "yearday": tm[7]
+    }
 
 
 class NFCAttendance():
@@ -46,6 +76,7 @@ class NFCAttendance():
         self.LCD_SPI.deinit()
 
         self.connect_wifi(self)
+        set_time()
         self.set_lesson_name()
 
     def center(self, msg):
