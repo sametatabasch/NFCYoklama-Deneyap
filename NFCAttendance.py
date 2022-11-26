@@ -153,6 +153,7 @@ class NFCAttendance():
                     self.lcd_rows[0] = [lesson, -1]
                     return True
         except KeyError as e:
+            self.lcd_rows[0] = ["", -1]
             return False
 
     def read_student_card_uid(self):
