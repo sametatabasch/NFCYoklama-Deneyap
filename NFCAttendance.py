@@ -7,7 +7,7 @@ from machine import Pin, SPI
 import deneyap
 import network
 import config
-from time import sleep, time, gmtime
+from time import sleep, time, gmtime, mktime, ticks_ms, ticks_diff
 import ntptime
 
 wlan = None
@@ -24,13 +24,14 @@ def set_time():
         print(err.args)
 
 
-def tr_time():
+def tr_time(is_tuple=False):
     """
 
     :return: tuple (year, month, mday, hour, minute, second, weekday, yearday)
     """
     tm = gmtime(time() + 10800)  # UTC+3
-    return {
+
+    return tm if is_tuple else {
         "year": tm[0],
         "month": tm[1],
         "mday": tm[2],
@@ -55,6 +56,8 @@ class NFCAttendance():
     ]
 
     def __init__(self):
+        self.connect_wifi(self)
+
         pin_miso = Pin(deneyap.MISO)
         pin_mosi = Pin(deneyap.MOSI)
         pin_sck = Pin(deneyap.SCK)
@@ -75,9 +78,9 @@ class NFCAttendance():
         self.NFC_SPI.deinit()
         self.LCD_SPI.deinit()
 
-        self.connect_wifi(self)
         set_time()
-        self.set_lesson_name()
+        # start waiting
+        self.wait()
 
     def center(self, msg):
         """
@@ -104,12 +107,53 @@ class NFCAttendance():
         self.LCD.show()
         self.LCD_SPI.deinit()
 
-    def set_lesson_name(self):
+    def check_lesson_time(self):
+        """
+        It checks if we are at the lesson time and determines the lesson name.
+        :return: bool
+        """
+
         """
         todo internet bağlantısı ile api üzerinden ders adı alınacak
         :return:
         """
-        self.lcd_rows[0] = ['BILP-100', -1]
+        """
+                schedule= {
+                    weekday : {
+                            "lesson code" : [[startH, startM], [endH, endM]]  ,
+                }
+                """
+        schedule = {
+            4: {
+                "BILP-201": [[8, 30], [9, 50]],
+                "BILP-107": [[13, 0], [17, 0]]
+
+            },
+            5: {
+                "BILP-201": [[12, 0], [13, 30]]
+
+            }
+        }
+        try:
+            day_lessons = schedule[tr_time()["weekday"]]
+            for lesson, times in day_lessons.items():
+
+                startT = tr_time()
+                startT["hour"] = times[0][0]
+                startT["minute"] = times[0][1]
+                startT = mktime((startT["year"], startT["month"], startT["mday"], startT["hour"], startT["minute"],
+                                 startT["second"], startT["weekday"], startT["yearday"]))
+                endT = tr_time()
+                endT["hour"] = times[1][0]
+                endT["minute"] = times[1][1]
+                endT = mktime((endT["year"], endT["month"], endT["mday"], endT["hour"], endT["minute"],
+                               endT["second"], endT["weekday"], endT["yearday"]))
+
+                if startT <= mktime(tr_time(True)) <= endT:
+                    self.lcd_rows[0] = [lesson, -1]
+                    return True
+        except KeyError as e:
+            return False
 
     def read_student_card_uid(self):
         """
@@ -122,6 +166,7 @@ class NFCAttendance():
         self.show_lcd()
         self.NFC_SPI.init()
         waiting_to_read = False
+        start_time = ticks_ms()
         while True:
             if not waiting_to_read:
                 print("Kart Okutun")
@@ -133,14 +178,14 @@ class NFCAttendance():
                 (stat, raw_uid) = self.NFC.anticoll()
 
                 if stat == self.NFC.OK:
-                    waiting_to_read = False
                     uid = "%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3])
                     self.NFC.stop_crypto1()
                     self.NFC_SPI.deinit()
-                    break
-        return uid
+                    return uid
+            if ticks_diff(ticks_ms(), start_time) > 1000 * 60:
+                break  # check every one minute lesson time
 
-    def show_student_name(self):
+    def take_attendance(self):
         std_list = {
             "93bdd50b": "Samet ATABAS",
             "3413fc51": "Kart 1",
@@ -148,17 +193,35 @@ class NFCAttendance():
             "d226d935": "Dis",
             "d56ef659": "Personel"
         }
+
+        std_uid = self.read_student_card_uid()
+        print(std_uid)
+        try:
+            self.lcd_rows[2] = ["", -1]
+            self.lcd_rows[3] = [std_list.get(std_uid), -1]
+            self.lcd_rows[4] = ["", -1]
+            self.show_lcd()
+            sleep(1)
+        except Exception as e:
+            print("unregistered student")
+            print(e.args)
+
+    def wait(self):
+        """
+        wait for lesson time
+        :return:
+        """
+        print("wait")
         while True:
-            std_uid = self.read_student_card_uid()
-            print(std_uid)
-            try:
-                self.lcd_rows[2] = ["", -1]
-                self.lcd_rows[3] = [std_list.get(std_uid), -1]
+            if self.check_lesson_time():
+                self.take_attendance()
+            else:
+                # todo turn of ldc led
+                self.lcd_rows[2] = ["Ders", -1]
+                self.lcd_rows[3] = ["bekleniyor", -1]
                 self.lcd_rows[4] = ["", -1]
                 self.show_lcd()
-                sleep(1)
-            except Exception as e:
-                print(e.args)
+                sleep(60 * 60 * 5)
 
     @staticmethod
     def connect_wifi(self):
