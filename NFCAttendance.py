@@ -46,6 +46,7 @@ def tr_time(is_tuple=False):
 class NFCAttendance():
     LCD, NFC = '', ''
     LCD_SPI, NFC_SPI = "", ""
+    LCD_LED = ""
     lcd_rows = [
         ["", -1],
         ["----------", -1],
@@ -73,6 +74,7 @@ class NFCAttendance():
         lcd_dc = Pin(deneyap.D14)
         lcd_rst = Pin(deneyap.D12)
         self.LCD = PCD8544_FRAMEBUF(spi=self.LCD_SPI, cs=lcd_cs, dc=lcd_dc, rst=lcd_rst)
+        self.LCD_LED = Pin(deneyap.A5, Pin.OUT)
 
         self.NFC_SPI.deinit()
         self.LCD_SPI.deinit()
@@ -183,13 +185,7 @@ class NFCAttendance():
         return None
 
     def take_attendance(self):
-        std_list = {
-            "93bdd50b": "Samet ATABAS",
-            "3413fc51": "Kart 1",
-            "2aca190b": "Kart 2",
-            "d226d935": "Dis",
-            "d56ef659": "Personel"
-        }
+        std_list = config.std_list
 
         std_uid = self.read_student_card_uid()
         print(std_uid)
@@ -211,9 +207,11 @@ class NFCAttendance():
         print("wait")
         while True:
             if self.check_lesson_time():
+                self.LCD_LED.value(1)
                 self.take_attendance()
             else:
-                # todo turn of ldc led
+                self.LCD_LED.value(0)
+                self.lcd_rows[0] = ["", -1]
                 self.lcd_rows[2] = ["Ders", -1]
                 self.lcd_rows[3] = ["bekleniyor", -1]
                 self.lcd_rows[4] = ["", -1]
