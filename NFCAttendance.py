@@ -127,6 +127,10 @@ class NFCAttendance():
             day_lessons = config.schedule[tr_time()["weekday"]]
             for lesson, times in day_lessons.items():
 
+                '''
+                    The start time and end time in the schedule are returned to the mktime(decimal number) type.
+                    Because time can be compared more easily in decimal number type.
+                '''
                 startT = tr_time()
                 startT["hour"] = times[0][0]
                 startT["minute"] = times[0][1]
@@ -147,7 +151,6 @@ class NFCAttendance():
 
     def read_student_card_uid(self):
         """
-
         :return: string uid
         """
         self.lcd_rows[2] = ["Yoklama", -1]
@@ -157,7 +160,9 @@ class NFCAttendance():
         self.NFC_SPI.init()
         waiting_to_read = False
         start_time = ticks_ms()
-        while True:
+        timeout = 10000  # 10 saniye süreyle okuma yapmaya çalış
+
+        while ticks_diff(ticks_ms(), start_time) < timeout:
             if not waiting_to_read:
                 print("Kart Okutun")
                 waiting_to_read = True
@@ -172,8 +177,10 @@ class NFCAttendance():
                     self.NFC.stop_crypto1()
                     self.NFC_SPI.deinit()
                     return uid
-            if ticks_diff(ticks_ms(), start_time) > 1000 * 60:
-                break  # check every one minute lesson time
+
+        # Belirli süre içinde kart okunmadıysa, None değeri döndür
+        self.NFC_SPI.deinit()
+        return None
 
     def take_attendance(self):
         std_list = {
