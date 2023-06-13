@@ -56,7 +56,6 @@ class NFCAttendance():
     ]
 
     def __init__(self):
-        self.connect_wifi(self)
 
         pin_miso = Pin(deneyap.MISO)
         pin_mosi = Pin(deneyap.MOSI)
@@ -77,7 +76,7 @@ class NFCAttendance():
 
         self.NFC_SPI.deinit()
         self.LCD_SPI.deinit()
-
+        self.connect_wifi(self)
         set_time()
         # start waiting
         self.wait()
@@ -123,19 +122,9 @@ class NFCAttendance():
                             "lesson code" : [[startH, startM], [endH, endM]]  ,
                 }
                 """
-        schedule = {
-            4: {
-                "BILP-201": [[8, 30], [9, 50]],
-                "BILP-107": [[13, 0], [17, 0]]
 
-            },
-            5: {
-                "BILP-201": [[12, 0], [13, 30]]
-
-            }
-        }
         try:
-            day_lessons = schedule[tr_time()["weekday"]]
+            day_lessons = config.schedule[tr_time()["weekday"]]
             for lesson, times in day_lessons.items():
 
                 startT = tr_time()
