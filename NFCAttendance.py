@@ -6,9 +6,11 @@ from lib.pcd8544 import PCD8544_FRAMEBUF
 from machine import Pin, SPI
 import deneyap
 import network
+import urequests
 import config
 from time import sleep, time, gmtime, mktime, ticks_ms, ticks_diff
 import ntptime
+import json
 
 wlan = None
 
@@ -41,6 +43,34 @@ def tr_time(is_tuple=False):
         "weekday": tm[6],
         "yearday": tm[7]
     }
+
+
+def get_access_key():
+    data = {
+        "username": config.api_username,
+        "password": config.api_passwd
+    }
+    url = config.api_url + "/login"
+
+    json_data = json.dumps(data)
+    response = urequests.post(url, data=json_data, headers={
+        'Content-type': 'application/json',
+        'Accept': '*/*'
+    })
+
+    # İstek sonucunu kontrol etme
+    if response.status_code == 200:
+        print("Access Token alındı")
+        data = response.json()
+        # Bağlantıyı kapatma
+        response.close()
+        return data['access_token']
+    else:
+        print("İstek başarısız!")
+        print(response.json())
+        # Bağlantıyı kapatma
+        response.close()
+        return False
 
 
 class NFCAttendance():
@@ -108,27 +138,42 @@ class NFCAttendance():
         self.LCD.show()
         self.LCD_SPI.deinit()
 
+    def get_schedule(self):
+        #todo sadece ilk açılışta program alınacak
+        response = urequests.post(config.api_url + "/get_schedule", headers={
+            'Content-type': 'application/json',
+            'Accept': '*/*',
+            'Authorization': "Bearer " + get_access_key()
+        })
+
+        # İstek sonucunu kontrol etme
+        if response.status_code == 200:
+            print("Program alındı")
+            data = response.json()
+            response.close()
+            return data['schedule']
+        else:
+            print("İstek başarısız!")
+            print("Durum kodu = " + response.status_code)
+            print(response.json())
+            # Bağlantıyı kapatma
+            response.close()
+            return False
+
     def check_lesson_time(self):
         """
         It checks if we are at the lesson time and determines the lesson name.
-        :return: bool
-        """
-
-        """
-        todo internet bağlantısı ile api üzerinden ders adı alınacak
-        :return:
-        """
-        """
-                schedule= {
+        schedule= {
                     weekday : {
                             "lesson code" : [[startH, startM], [endH, endM]]  ,
                 }
-                """
+        :return: bool
 
+        """
+        schedule = self.get_schedule()
         try:
-            day_lessons = config.schedule[tr_time()["weekday"]]
+            day_lessons = schedule[str(tr_time()["weekday"])]
             for lesson, times in day_lessons.items():
-
                 '''
                     The start time and end time in the schedule are returned to the mktime(decimal number) type.
                     Because time can be compared more easily in decimal number type.
@@ -147,7 +192,7 @@ class NFCAttendance():
                 if startT <= mktime(tr_time(True)) <= endT:
                     self.lcd_rows[0] = [lesson, -1]
                     return True
-        except KeyError as e:
+        except Exception as e:
             self.lcd_rows[0] = ["", -1]
             return False
 
@@ -187,9 +232,10 @@ class NFCAttendance():
     def take_attendance(self):
         std_list = config.std_list
 
-        std_uid = self.read_student_card_uid()
-        print(std_uid)
         try:
+            std_uid = self.read_student_card_uid()
+            print(std_uid)
+
             self.lcd_rows[2] = ["", -1]
             self.lcd_rows[3] = [std_list.get(std_uid), -1]
             self.lcd_rows[4] = ["", -1]
