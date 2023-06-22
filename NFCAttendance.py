@@ -140,6 +140,10 @@ class NFCAttendance():
         self.LCD_SPI.deinit()
 
     def get_schedule(self):
+        self.lcd_rows[2] = ["Ders Programi", -1]
+        self.lcd_rows[3] = ["", -1]
+        self.lcd_rows[4] = ["Aliniyor", -1]
+        self.show_lcd()
         response = urequests.post(config.api_url + "/get_schedule", headers={
             'Content-type': 'application/json',
             'Accept': '*/*',
