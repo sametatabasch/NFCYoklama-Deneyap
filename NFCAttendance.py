@@ -2,8 +2,7 @@
 NFC kullanarak yoklama alma işlermleri
 """
 from lib.mfrc522 import MFRC522
-from lib.pcd8544 import PCD8544_FRAMEBUF
-from machine import Pin, SPI
+from machine import Pin, SPI, SoftI2C
 import deneyap
 import network
 import lib.urquest as urequests
@@ -11,6 +10,7 @@ import config
 from time import sleep, time, gmtime, mktime, ticks_ms, ticks_diff
 import ntptime
 import json
+import lib.ssd1306 as oledFW
 
 wlan = None
 
@@ -74,17 +74,24 @@ def get_access_key():
 
 
 class NFCAttendance():
-    LCD, NFC = '', ''
+    '''
+        Oled 128x64 px
+        font 8x8 px
+    '''
+    NFC, oled = '',''
     LCD_SPI, NFC_SPI = "", ""
-    LCD_LED = ""
     lcd_rows = [
         ["", -1],
-        ["----------", -1],
-        ["Yoklama", -1],
-        ["Icin", -1],
-        ["Kart Okut", -1],
-        ["----------", -1]
+        ["", -1],
+        ["", -1],
+        ["", -1],
+        ["", -1],
+        ["", -1],
+        ["", -1],
+        ["", -1]
     ]
+    schedule = {}
+    i2c = ''
 
     def __init__(self):
 
@@ -92,22 +99,18 @@ class NFCAttendance():
         pin_mosi = Pin(deneyap.MOSI)
         pin_sck = Pin(deneyap.SCK)
 
+        self.i2c = SoftI2C(sda=Pin(deneyap.SDA), scl=Pin(deneyap.SCL))
+        self.oled = oledFW.SSD1306_I2C(128, 64, self.i2c,addr=0x3d)
+
+        self.oled.contrast(255)
+        self.oled.invert(1)
+
         self.NFC_SPI = SPI(1, baudrate=2500000, polarity=0, phase=0, miso=pin_miso, mosi=pin_mosi, sck=pin_sck)
         self.NFC_SPI.init()
         self.NFC = MFRC522(spi=self.NFC_SPI, gpioRst=deneyap.D0, gpioCs=deneyap.SDA)
 
-        lcd_mosi = Pin(deneyap.D15)
-        lcd_sck = Pin(deneyap.D1)
-        self.LCD_SPI = SPI(2, baudrate=2000000, polarity=0, phase=0, mosi=lcd_mosi, sck=lcd_sck)
-        self.LCD_SPI.init()
-        lcd_cs = Pin(deneyap.D13)
-        lcd_dc = Pin(deneyap.D14)
-        lcd_rst = Pin(deneyap.D12)
-        self.LCD = PCD8544_FRAMEBUF(spi=self.LCD_SPI, cs=lcd_cs, dc=lcd_dc, rst=lcd_rst)
-        self.LCD_LED = Pin(deneyap.A5, Pin.OUT)
 
         self.NFC_SPI.deinit()
-        self.LCD_SPI.deinit()
         self.connect_wifi(self)
         set_time()
         self.get_schedule()
@@ -120,30 +123,30 @@ class NFCAttendance():
         :param msg: string to center
         :return int:
         """
-        return (self.LCD.width - len(msg) * 8) // 2
+        return (128 - len(msg) * 8) // 2 # width of oled is 128 px
 
-    def show_lcd(self):
+    def show_on_screen(self):
         """
 
         :param rows: list: [[msg, x],... ] for centered text x= -1
         :return:
         """
-        self.LCD_SPI.init()
-        self.LCD.fclear()
+        self.oled.fill(0) # clear screen
+        self.oled.hline(0, 12, 128, 1)  # draw horizontal line x=0, y=12, width=128, colour=1 center of 2. row
+        self.oled.hline(0, 52, 128, 1)  # draw horizontal line x=0, y=52, width=128, colour=1 center of 7. row
         row_num = 1
         for row in self.lcd_rows:
             if len(row) > 0:
-                self.LCD.text(row[0], self.center(row[0]) if row[1] == -1 else row[1], (row_num - 1) * 8, 1)
-
+                startY = ((row_num - 1) * 8)
+                self.oled.text(row[0], self.center(row[0]) if row[1] == -1 else row[1], startY if startY!=0 else 1, 1)
             row_num += 1
-        self.LCD.show()
-        self.LCD_SPI.deinit()
+        self.oled.show()
 
     def get_schedule(self):
         self.lcd_rows[2] = ["Ders Programi", -1]
         self.lcd_rows[3] = ["", -1]
         self.lcd_rows[4] = ["Aliniyor", -1]
-        self.show_lcd()
+        self.show_on_screen()
         response = urequests.post(config.api_url + "/get_schedule", headers={
             'Content-type': 'application/json',
             'Accept': '*/*',
@@ -214,7 +217,7 @@ class NFCAttendance():
         self.lcd_rows[2] = ["Yoklama", -1]
         self.lcd_rows[3] = ["Icin", -1]
         self.lcd_rows[4] = ["Kart Okut", -1]
-        self.show_lcd()
+        self.show_on_screen()
         self.NFC_SPI.init()
         start_time = ticks_ms()
         timeout = 10000  # 10 saniye süreyle okuma yapmaya çalış
@@ -249,7 +252,7 @@ class NFCAttendance():
                 self.lcd_rows[2] = ["", -1]
                 self.lcd_rows[3] = [std_list.get(std_uid), -1]
                 self.lcd_rows[4] = ["", -1]
-                self.show_lcd()
+                self.show_on_screen()
                 sleep(1)  # sleep for showing student info
         except Exception as e:
             print("unregistered student")
@@ -263,15 +266,13 @@ class NFCAttendance():
         print("wait")
         while True:
             if self.check_lesson_time():
-                self.LCD_LED.value(1)
                 self.take_attendance()
             else:
-                self.LCD_LED.value(0)
                 self.lcd_rows[0] = ["", -1]
                 self.lcd_rows[2] = ["Ders", -1]
                 self.lcd_rows[3] = ["bekleniyor", -1]
                 self.lcd_rows[4] = ["", -1]
-                self.show_lcd()
+                self.show_on_screen()
                 sleep(60 * 60 * 5)
 
     @staticmethod
@@ -285,7 +286,7 @@ class NFCAttendance():
             self.lcd_rows[2] = ["Internet'e", -1]
             self.lcd_rows[3] = ["Baglaniyor", -1]
             self.lcd_rows[4] = ["", -1]
-            self.show_lcd()
+            self.show_on_screen()
             sleep(1)
             pass
         return True
