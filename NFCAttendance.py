@@ -6,7 +6,7 @@ from lib.pcd8544 import PCD8544_FRAMEBUF
 from machine import Pin, SPI
 import deneyap
 import network
-import urequests
+import lib.urquest as urequests
 import config
 from time import sleep, time, gmtime, mktime, ticks_ms, ticks_diff
 import ntptime
