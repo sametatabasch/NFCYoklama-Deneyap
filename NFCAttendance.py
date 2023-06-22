@@ -110,6 +110,7 @@ class NFCAttendance():
         self.LCD_SPI.deinit()
         self.connect_wifi(self)
         set_time()
+        self.get_schedule()
         # start waiting
         self.wait()
 
@@ -139,7 +140,6 @@ class NFCAttendance():
         self.LCD_SPI.deinit()
 
     def get_schedule(self):
-        #todo sadece ilk açılışta program alınacak
         response = urequests.post(config.api_url + "/get_schedule", headers={
             'Content-type': 'application/json',
             'Accept': '*/*',
@@ -151,7 +151,8 @@ class NFCAttendance():
             print("Program alındı")
             data = response.json()
             response.close()
-            return data['schedule']
+            self.schedule = data['schedule']
+            return True
         else:
             print("İstek başarısız!")
             print("Durum kodu = " + response.status_code)
@@ -170,9 +171,8 @@ class NFCAttendance():
         :return: bool
 
         """
-        schedule = self.get_schedule()
         try:
-            day_lessons = schedule[str(tr_time()["weekday"])]
+            day_lessons = self.schedule[str(tr_time()["weekday"])]
             for lesson, times in day_lessons.items():
                 '''
                     The start time and end time in the schedule are returned to the mktime(decimal number) type.
@@ -190,14 +190,21 @@ class NFCAttendance():
                                endT["second"], endT["weekday"], endT["yearday"]))
 
                 if startT <= mktime(tr_time(True)) <= endT:
-                    self.lcd_rows[0] = [lesson, -1]
+                    self.lcd_rows[0] = [lesson, -1]  # set lesson name
                     return True
-        except Exception as e:
-            self.lcd_rows[0] = ["", -1]
+                else:
+                    self.lcd_rows[0] = ["", -1]  # clear lesson name
+                    return False
+        except KeyError as e:
+            '''
+                If schedule has not this weekday, it throw KeyError
+            '''
+            self.lcd_rows[0] = ["", -1]  # clear lesson name
             return False
 
     def read_student_card_uid(self):
         """
+        try to read NFC Card id in 10 second
         :return: string uid
         """
         self.lcd_rows[2] = ["Yoklama", -1]
@@ -205,15 +212,10 @@ class NFCAttendance():
         self.lcd_rows[4] = ["Kart Okut", -1]
         self.show_lcd()
         self.NFC_SPI.init()
-        waiting_to_read = False
         start_time = ticks_ms()
         timeout = 10000  # 10 saniye süreyle okuma yapmaya çalış
 
         while ticks_diff(ticks_ms(), start_time) < timeout:
-            if not waiting_to_read:
-                print("Kart Okutun")
-                waiting_to_read = True
-
             (stat, tag_type) = self.NFC.request(self.NFC.REQIDL)
 
             if stat == self.NFC.OK:
@@ -234,13 +236,17 @@ class NFCAttendance():
 
         try:
             std_uid = self.read_student_card_uid()
-            print(std_uid)
+            if std_uid:
+                '''
+                    If student card id read
+                '''
+                print(std_uid)
 
-            self.lcd_rows[2] = ["", -1]
-            self.lcd_rows[3] = [std_list.get(std_uid), -1]
-            self.lcd_rows[4] = ["", -1]
-            self.show_lcd()
-            sleep(1)
+                self.lcd_rows[2] = ["", -1]
+                self.lcd_rows[3] = [std_list.get(std_uid), -1]
+                self.lcd_rows[4] = ["", -1]
+                self.show_lcd()
+                sleep(1)  # sleep for showing student info
         except Exception as e:
             print("unregistered student")
             print(e.args)
