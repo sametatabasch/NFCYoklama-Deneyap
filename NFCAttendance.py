@@ -201,7 +201,8 @@ class NFCAttendance():
                     return True
                 else:
                     self.lcd_rows[0] = ["", -1]  # clear lesson name
-                    return False
+                    continue
+            return False
         except KeyError as e:
             '''
                 If schedule has not this weekday, it throw KeyError
