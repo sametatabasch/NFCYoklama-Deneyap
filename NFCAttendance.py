@@ -78,7 +78,7 @@ class NFCAttendance():
         Oled 128x64 px
         font 8x8 px
     '''
-    NFC, oled = '',''
+    NFC, oled = '', ''
     LCD_SPI, NFC_SPI = "", ""
     lcd_rows = [
         ["", -1],
@@ -100,7 +100,7 @@ class NFCAttendance():
         pin_sck = Pin(deneyap.SCK)
 
         self.i2c = SoftI2C(sda=Pin(deneyap.SDA), scl=Pin(deneyap.SCL))
-        self.oled = oledFW.SSD1306_I2C(128, 64, self.i2c,addr=0x3d)
+        self.oled = oledFW.SSD1306_I2C(128, 64, self.i2c, addr=0x3d)
 
         self.oled.contrast(255)
         self.oled.invert(1)
@@ -109,11 +109,9 @@ class NFCAttendance():
         self.NFC_SPI.init()
         self.NFC = MFRC522(spi=self.NFC_SPI, gpioRst=deneyap.D0, gpioCs=deneyap.SDA)
 
-
         self.NFC_SPI.deinit()
         self.connect_wifi(self)
         set_time()
-        self.get_schedule()
         # start waiting
         self.wait()
 
@@ -123,7 +121,7 @@ class NFCAttendance():
         :param msg: string to center
         :return int:
         """
-        return (128 - len(msg) * 8) // 2 # width of oled is 128 px
+        return (128 - len(msg) * 8) // 2  # width of oled is 128 px
 
     def show_on_screen(self):
         """
@@ -131,41 +129,67 @@ class NFCAttendance():
         :param rows: list: [[msg, x],... ] for centered text x= -1
         :return:
         """
-        self.oled.fill(0) # clear screen
+        self.oled.fill(0)  # clear screen
         self.oled.hline(0, 12, 128, 1)  # draw horizontal line x=0, y=12, width=128, colour=1 center of 2. row
         self.oled.hline(0, 52, 128, 1)  # draw horizontal line x=0, y=52, width=128, colour=1 center of 7. row
         row_num = 1
         for row in self.lcd_rows:
             if len(row) > 0:
                 startY = ((row_num - 1) * 8)
-                self.oled.text(row[0], self.center(row[0]) if row[1] == -1 else row[1], startY if startY!=0 else 1, 1)
+                self.oled.text(row[0], self.center(row[0]) if row[1] == -1 else row[1], startY if startY != 0 else 1, 1)
             row_num += 1
         self.oled.show()
 
     def get_schedule(self):
-        self.lcd_rows[2] = ["Ders Programi", -1]
-        self.lcd_rows[3] = ["", -1]
-        self.lcd_rows[4] = ["Aliniyor", -1]
+        self.lcd_rows[2] = ["Program icin", -1]
+        self.lcd_rows[3] = ["Hoca Karti", -1]
+        self.lcd_rows[4] = ["Okutun", -1]
         self.show_on_screen()
-        response = urequests.post(config.api_url + "/get_schedule", headers={
-            'Content-type': 'application/json',
-            'Accept': '*/*',
-            'Authorization': "Bearer " + get_access_key()
-        })
 
-        # İstek sonucunu kontrol etme
-        if response.status_code == 200:
-            print("Program alındı")
-            data = response.json()
-            response.close()
-            self.schedule = data['schedule']
-            return True
+        instructor_card_id = self.read_card_uid()
+        if instructor_card_id:
+            self.lcd_rows[2] = ["Kart", -1]
+            self.lcd_rows[3] = ["Kontrol", -1]
+            self.lcd_rows[4] = ["Ediliyor", -1]
+            self.show_on_screen()
+            data = {
+                "card_id": instructor_card_id
+            }
+            data = json.dumps(data)
+
+            response = urequests.post(config.api_url + "/get_schedule", headers={
+                'Content-type': 'application/json',
+                'Accept': '*/*',
+                'Authorization': "Bearer " + get_access_key()
+            }, data=data)
+
+            # İstek sonucunu kontrol etme
+            if response.status_code == 200:
+                print("Program alındı")
+                print(instructor_card_id)
+                data = response.json()
+                response.close()
+                self.lcd_rows[2] = [data["name"], -1]
+                self.lcd_rows[3] = [data["last_name"], -1]
+                self.lcd_rows[4] = ["Programi Alindi", -1]
+                self.show_on_screen()
+                sleep(2)
+                self.schedule = json.loads(data['schedule'])
+                return True
+            else:
+                print("İstek başarısız!")
+                print("Durum kodu = " + str(response.status_code))
+                print(instructor_card_id)
+                print(response.json())
+                self.lcd_rows[2] = ["", -1]
+                self.lcd_rows[3] = ["Hoca Bulunamadi", -1]
+                self.lcd_rows[4] = ["", -1]
+                self.show_on_screen()
+                sleep(2)
+                # Bağlantıyı kapatma
+                response.close()
+                return False
         else:
-            print("İstek başarısız!")
-            print("Durum kodu = " + response.status_code)
-            print(response.json())
-            # Bağlantıyı kapatma
-            response.close()
             return False
 
     def check_lesson_time(self):
@@ -210,15 +234,11 @@ class NFCAttendance():
             self.lcd_rows[0] = ["", -1]  # clear lesson name
             return False
 
-    def read_student_card_uid(self):
+    def read_card_uid(self):
         """
         try to read NFC Card id in 10 second
         :return: string uid
         """
-        self.lcd_rows[2] = ["Yoklama", -1]
-        self.lcd_rows[3] = ["Icin", -1]
-        self.lcd_rows[4] = ["Kart Okut", -1]
-        self.show_on_screen()
         self.NFC_SPI.init()
         start_time = ticks_ms()
         timeout = 10000  # 10 saniye süreyle okuma yapmaya çalış
@@ -243,7 +263,11 @@ class NFCAttendance():
         std_list = config.std_list
 
         try:
-            std_uid = self.read_student_card_uid()
+            self.lcd_rows[2] = ["Yoklama", -1]
+            self.lcd_rows[3] = ["Icin", -1]
+            self.lcd_rows[4] = ["Kart Okut", -1]
+            self.show_on_screen()
+            std_uid = self.read_card_uid()
             if std_uid:
                 '''
                     If student card id read
@@ -256,6 +280,11 @@ class NFCAttendance():
                 self.show_on_screen()
                 sleep(1)  # sleep for showing student info
         except Exception as e:
+            self.lcd_rows[2] = ["Ogrenci", -1]
+            self.lcd_rows[3] = ["Kayitli", -1]
+            self.lcd_rows[4] = ["Degil", -1]
+            self.show_on_screen()
+            sleep(1)
             print("unregistered student")
             print(e.args)
 
@@ -265,6 +294,9 @@ class NFCAttendance():
         :return:
         """
         print("wait")
+        is_program_exist = False
+        while not is_program_exist:
+            is_program_exist = self.get_schedule()
         while True:
             if self.check_lesson_time():
                 self.take_attendance()
