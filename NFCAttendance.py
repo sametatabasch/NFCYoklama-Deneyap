@@ -177,6 +177,11 @@ class NFCAttendance():
             }
             response_data = self.send_request(config.api_url + "/get_schedule", data)
             if response_data:
+                self.lcd_rows[2] = [response_data["name"], -1]
+                self.lcd_rows[3] = [response_data["last_name"], -1]
+                self.lcd_rows[4] = ["Programi Alindi", -1]
+                self.show_on_screen()
+                sleep(2)
                 self.schedule = json.loads(response_data['schedule'])
                 return True
             else:
