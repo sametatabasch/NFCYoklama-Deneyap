@@ -45,56 +45,24 @@ def tr_time(is_tuple=False):
     }
 
 
-def get_access_key():
-    data = {
-        "username": config.api_username,
-        "password": config.api_passwd
-    }
-    url = config.api_url + "/login"
-
-    json_data = json.dumps(data)
-    response = urequests.post(url, data=json_data, headers={
-        'Content-type': 'application/json',
-        'Accept': '*/*'
-    })
-
-    # İstek sonucunu kontrol etme
-    if response.status_code == 200:
-        print("Access Token alındı")
-        data = response.json()
-        # Bağlantıyı kapatma
-        response.close()
-        return data['access_token']
-    else:
-        print("İstek başarısız!")
-        print(response.json())
-        # Bağlantıyı kapatma
-        response.close()
-        return False
-
-
 class NFCAttendance():
-    '''
-        Oled 128x64 px
-        font 8x8 px
-    '''
-    NFC, oled = '', ''
-    LCD_SPI, NFC_SPI = "", ""
-    lcd_rows = [
-        ["", -1],
-        ["", -1],
-        ["", -1],
-        ["", -1],
-        ["", -1],
-        ["", -1],
-        ["", -1],
-        ["", -1]
-    ]
-    schedule = {}
-    i2c = ''
+    """
+
+    """
 
     def __init__(self):
-
+        self.ACCESS_KEY = None
+        self.lcd_rows = [
+            ["", -1],
+            ["", -1],
+            ["", -1],
+            ["", -1],
+            ["", -1],
+            ["", -1],
+            ["", -1],
+            ["", -1]
+        ]
+        self.schedule = {}
         pin_miso = Pin(deneyap.MISO)
         pin_mosi = Pin(deneyap.MOSI)
         pin_sck = Pin(deneyap.SCK)
@@ -112,8 +80,58 @@ class NFCAttendance():
         self.NFC_SPI.deinit()
         self.connect_wifi(self)
         set_time()
+        self.get_access_key()
         # start waiting
         self.wait()
+
+    def get_access_key(self):
+        """
+        Access key expire in one day. İf self.ACCESS_KEY = None get new access key
+        :return:
+        """
+        if not self.ACCESS_KEY:
+            data = {
+                "username": config.api_username,
+                "password": config.api_passwd
+            }
+            url = config.api_url + "/login"
+
+            response_data = self.send_request(url, data)
+            if response_data:
+                self.ACCESS_KEY = response_data['access_token']
+            else:
+                print("İstek başarısız!")
+                return False
+
+    def send_request(self, url: str, data: dict):
+        """
+
+        :param url:
+        :param data:
+        :return: json
+        """
+        json_data = json.dumps(data)
+        response = urequests.post(url, headers={
+            'Content-type': 'application/json',
+            'Accept': '*/*',
+            'Authorization': "" if not self.ACCESS_KEY else "Bearer " + self.ACCESS_KEY
+        }, data=json_data)
+        # İstek sonucunu kontrol etme
+        if response.status_code == 200:
+            print(url + " send request success")
+            data = response.json()
+            response.close()
+            return data
+        elif response.status_code == 401:
+            print("401 Hatası")
+            self.get_access_key()
+            return self.send_request(url, data)
+        else:
+            print("İstek başarısız!")
+            print("Durum kodu = " + str(response.status_code))
+            print(response.json())
+            response.close()
+            return False
 
     def center(self, msg):
         """
@@ -155,39 +173,16 @@ class NFCAttendance():
             data = {
                 "card_id": instructor_card_id
             }
-            data = json.dumps(data)
-
-            response = urequests.post(config.api_url + "/get_schedule", headers={
-                'Content-type': 'application/json',
-                'Accept': '*/*',
-                'Authorization': "Bearer " + get_access_key()
-            }, data=data)
-
-            # İstek sonucunu kontrol etme
-            if response.status_code == 200:
-                print("Program alındı")
-                print(instructor_card_id)
-                data = response.json()
-                response.close()
-                self.lcd_rows[2] = [data["name"], -1]
-                self.lcd_rows[3] = [data["last_name"], -1]
-                self.lcd_rows[4] = ["Programi Alindi", -1]
-                self.show_on_screen()
-                sleep(2)
-                self.schedule = json.loads(data['schedule'])
+            response_data = self.send_request(config.api_url + "/get_schedule", data)
+            if response_data:
+                self.schedule = json.loads(response_data['schedule'])
                 return True
             else:
-                print("İstek başarısız!")
-                print("Durum kodu = " + str(response.status_code))
-                print(instructor_card_id)
-                print(response.json())
                 self.lcd_rows[2] = ["", -1]
                 self.lcd_rows[3] = ["Hoca Bulunamadi", -1]
                 self.lcd_rows[4] = ["", -1]
                 self.show_on_screen()
                 sleep(2)
-                # Bağlantıyı kapatma
-                response.close()
                 return False
         else:
             return False
@@ -258,6 +253,7 @@ class NFCAttendance():
         # Belirli süre içinde kart okunmadıysa, None değeri döndür
         self.NFC_SPI.deinit()
         return None
+
 
     def take_attendance(self):
         std_list = config.std_list
