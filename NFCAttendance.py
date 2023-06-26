@@ -63,6 +63,7 @@ class NFCAttendance():
             ["", -1]
         ]
         self.schedule = {}
+        self.student_list = {}
         pin_miso = Pin(deneyap.MISO)
         pin_mosi = Pin(deneyap.MOSI)
         pin_sck = Pin(deneyap.SCK)
@@ -81,6 +82,7 @@ class NFCAttendance():
         self.connect_wifi(self)
         set_time()
         self.get_access_key()
+        self.get_student_list()
         # start waiting
         self.wait()
 
@@ -254,10 +256,27 @@ class NFCAttendance():
         self.NFC_SPI.deinit()
         return None
 
+    def get_student_list(self):
+        """
+
+        :return: list ({"card_id":"student_name"})
+        """
+        response_data = self.send_request(config.api_url + "/get_students", {})
+
+        if response_data:
+            self.lcd_rows[2] = ["Ogrenci", -1]
+            self.lcd_rows[3] = ["Listesi", -1]
+            self.lcd_rows[4] = ["Alindi", -1]
+            self.show_on_screen()
+            sleep(2)
+            for student in response_data['students']:
+                self.student_list[student['card_id']] = {"name": student['name'], "last_name": student['last_name'],
+                                                         "student_id": student['student_id']}
+        else:
+            print("İstek başarısız!")
+            return False
 
     def take_attendance(self):
-        std_list = config.std_list
-
         try:
             self.lcd_rows[2] = ["Yoklama", -1]
             self.lcd_rows[3] = ["Icin", -1]
@@ -269,10 +288,10 @@ class NFCAttendance():
                     If student card id read
                 '''
                 print(std_uid)
-
-                self.lcd_rows[2] = ["", -1]
-                self.lcd_rows[3] = [std_list.get(std_uid), -1]
-                self.lcd_rows[4] = ["", -1]
+                student = self.student_list[std_uid]
+                self.lcd_rows[2] = [student['name'], -1]
+                self.lcd_rows[3] = [student['last_name'], -1]
+                self.lcd_rows[4] = [student['student_id'], -1]
                 self.show_on_screen()
                 sleep(1)  # sleep for showing student info
         except Exception as e:
