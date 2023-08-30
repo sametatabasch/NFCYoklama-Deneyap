@@ -63,6 +63,7 @@ class NFCAttendance():
             ["", -1]
         ]
         self.schedule = {}
+        self.is_schedule_exist = False
         self.student_list = {}
         pin_miso = Pin(deneyap.MISO)
         pin_mosi = Pin(deneyap.MOSI)
@@ -82,7 +83,6 @@ class NFCAttendance():
         self.connect_wifi(self)
         set_time()
         self.get_access_key()
-        self.get_student_list()
         # start waiting
         self.wait()
 
@@ -125,7 +125,7 @@ class NFCAttendance():
             response.close()
             return data
         elif response.status_code == 401:
-            print("401 Hatası")
+            print("401 Kimlik Hatası")
             self.get_access_key()
             return self.send_request(url, data)
         else:
@@ -156,7 +156,8 @@ class NFCAttendance():
         for row in self.lcd_rows:
             if len(row) > 0:
                 startY = ((row_num - 1) * 8)
-                self.oled.text(row[0], self.center(row[0]) if row[1] == -1 else row[1], startY if startY != 0 else 1, 1)
+                self.oled.text(self.to_english(row[0]), self.center(row[0]) if row[1] == -1 else row[1],
+                               startY if startY != 0 else 1, 1)
             row_num += 1
         self.oled.show()
 
@@ -193,6 +194,37 @@ class NFCAttendance():
                 return False
         else:
             return False
+
+    def add_new_student(self, student_card_uid):
+        answer = input("Öğrenci bilgileri kaydedilsin mi? e/h \n")
+        if answer == "e":
+            self.lcd_rows[0] = ["", -1]
+            self.lcd_rows[2] = ["Ogrenci Numarasi", -1]
+            self.lcd_rows[3] = ["Kaydediliyor", -1]
+            self.lcd_rows[4] = ["...", -1]
+            self.show_on_screen()
+
+            student_id = input("Öğrenci Numarasını girin:")
+
+            student_data = {
+                "student": {
+                    "name": "",
+                    "last_name": "",
+                    "card_id": student_card_uid,
+                    "student_id": student_id
+                }
+            }
+            response_data = self.send_request(config.api_url + "/create_student", student_data)
+            if response_data:
+                student = response_data['student']
+                print(student["student_id"])
+                print(student["card_id"])
+                self.lcd_rows[0] = [student['student_id'], -1]
+                self.lcd_rows[2] = ["Ogrenci Numarasi", -1]
+                self.lcd_rows[3] = ["Kaydedildi", -1]
+                self.lcd_rows[4] = ["", -1]
+                self.show_on_screen()
+                sleep(2)
 
     def check_lesson_time(self):
         """
@@ -261,24 +293,15 @@ class NFCAttendance():
         self.NFC_SPI.deinit()
         return None
 
-    def get_student_list(self):
-        """
-
-        :return: list ({"card_id":"student_name"})
-        """
-        response_data = self.send_request(config.api_url + "/get_students", {})
-
+    def get_student(self, student_card_uid):
+        self.lcd_rows[2] = ["Kart Kontrol", -1]
+        self.lcd_rows[3] = ["Ediliyor", -1]
+        self.lcd_rows[4] = ["", -1]
+        self.show_on_screen()
+        response_data = self.send_request(config.api_url + "/get_student", {"card_id": student_card_uid})
         if response_data:
-            self.lcd_rows[2] = ["Ogrenci", -1]
-            self.lcd_rows[3] = ["Listesi", -1]
-            self.lcd_rows[4] = ["Alindi", -1]
-            self.show_on_screen()
-            sleep(2)
-            for student in response_data['students']:
-                self.student_list[student['card_id']] = {"name": student['name'], "last_name": student['last_name'],
-                                                         "student_id": student['student_id']}
+            return response_data.get('student')
         else:
-            print("İstek başarısız!")
             return False
 
     def take_attendance(self):
@@ -287,25 +310,33 @@ class NFCAttendance():
             self.lcd_rows[3] = ["Icin", -1]
             self.lcd_rows[4] = ["Kart Okut", -1]
             self.show_on_screen()
-            std_uid = self.read_card_uid()
-            if std_uid:
+            student_card_uid = self.read_card_uid()
+            if student_card_uid:
                 '''
                     If student card id read
                 '''
-                print(std_uid)
-                student = self.student_list[std_uid]
-                self.lcd_rows[2] = [student['name'], -1]
-                self.lcd_rows[3] = [student['last_name'], -1]
-                self.lcd_rows[4] = [student['student_id'], -1]
-                self.show_on_screen()
-                sleep(1)  # sleep for showing student info
+                print(student_card_uid)
+                student = self.get_student(student_card_uid)
+                if student:
+                    self.lcd_rows[2] = [student['name'], -1]
+                    self.lcd_rows[3] = [student['last_name'], -1]
+                    self.lcd_rows[4] = [student['student_id'], -1]
+                    self.show_on_screen()
+                    sleep(2)  # sleep for showing student info
+                else:
+                    self.lcd_rows[2] = ["Kayıtsız Öğrenci", -1]
+                    self.lcd_rows[3] = ["Kaydetmek için", -1]
+                    self.lcd_rows[4] = ["Butona basın", -1]
+                    self.show_on_screen()
+                    buton_pin = Pin(deneyap.GPKEY, Pin.IN, Pin.PULL_UP)
+                    # Buton 5 saniye içinde basılıp basılmadığını kontrol et
+                    start_time = ticks_ms()  # Başlangıç zamanı
+                    while ticks_diff(ticks_ms(), start_time) < 5000:
+                        if buton_pin.value() == 0:  # Buton basıldıysa
+                            self.add_new_student(student_card_uid)
+                            sleep(0.5)  # 0.5 saniye bekle
+                            break  # Döngüden çık
         except Exception as e:
-            self.lcd_rows[2] = ["Ogrenci", -1]
-            self.lcd_rows[3] = ["Kayitli", -1]
-            self.lcd_rows[4] = ["Degil", -1]
-            self.show_on_screen()
-            sleep(1)
-            print("unregistered student")
             print(e.args)
 
     def wait(self):
@@ -314,9 +345,8 @@ class NFCAttendance():
         :return:
         """
         print("wait")
-        is_program_exist = False
-        while not is_program_exist:
-            is_program_exist = self.get_schedule()
+        while not self.is_schedule_exist:
+            self.is_schedule_exist = self.get_schedule()
         while True:
             if self.check_lesson_time():
                 self.take_attendance()
@@ -343,3 +373,24 @@ class NFCAttendance():
             sleep(1)
             pass
         return True
+
+    def to_english(self, input_string: str):
+        replacements = {
+            "ç": "c",
+            "ğ": "g",
+            "ı": "i",
+            "ö": "o",
+            "ş": "s",
+            "ü": "u",
+            "Ç": "C",
+            "Ğ": "G",
+            "İ": "I",
+            "Ö": "O",
+            "Ş": "S",
+            "Ü": "U"
+        }
+
+        result = input_string
+        for turkish_char, english_char in replacements.items():
+            result = result.replace(turkish_char, english_char)
+        return result
