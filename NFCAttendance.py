@@ -65,6 +65,7 @@ class NFCAttendance():
         self.schedule = {}
         self.is_schedule_exist = False
         self.student_list = {}
+        self.current_lesson = ""
         pin_miso = Pin(deneyap.MISO)
         pin_mosi = Pin(deneyap.MOSI)
         pin_sck = Pin(deneyap.SCK)
@@ -255,7 +256,8 @@ class NFCAttendance():
                                endT["second"], endT["weekday"], endT["yearday"]))
 
                 if startT <= mktime(tr_time(True)) <= endT:
-                    self.lcd_rows[0] = [lesson, -1]  # set lesson name
+                    self.current_lesson = lesson  # set lesson name
+                    self.lcd_rows[0] = [lesson, -1]
                     return True
                 else:
                     self.lcd_rows[0] = ["", -1]  # clear lesson name
@@ -318,11 +320,19 @@ class NFCAttendance():
                 print(student_card_uid)
                 student = self.get_student(student_card_uid)
                 if student:
-                    self.lcd_rows[2] = [student['name'], -1]
-                    self.lcd_rows[3] = [student['last_name'], -1]
-                    self.lcd_rows[4] = [student['student_id'], -1]
-                    self.show_on_screen()
-                    sleep(2)  # sleep for showing student info
+                    if self.current_lesson in student['lessons']:
+                        self.lcd_rows[2] = [student['name'], -1]
+                        self.lcd_rows[3] = [student['last_name'], -1]
+                        self.lcd_rows[4] = [student['student_id'], -1]
+                        self.show_on_screen()
+                        # todo yoklama bilgisinin veri tabanına kaydı işlemleri yapılacak
+                        sleep(2)  # sleep for showing student info
+                    else:
+                        self.lcd_rows[2] = ["Derse", -1]
+                        self.lcd_rows[3] = ["Kaydınız", -1]
+                        self.lcd_rows[4] = ["Bununmuyor", -1]
+                        self.show_on_screen()
+                        sleep(2)  # sleep for showing student info
                 else:
                     self.lcd_rows[2] = ["Kayıtsız Öğrenci", -1]
                     self.lcd_rows[3] = ["Kaydetmek için", -1]
