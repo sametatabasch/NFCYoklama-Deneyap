@@ -205,22 +205,22 @@ class NFCAttendance():
             self.lcd_rows[4] = ["...", -1]
             self.show_on_screen()
 
-            student_id = input("Öğrenci Numarasını girin:")
+            student_number = input("Öğrenci Numarasını girin:")
 
             student_data = {
                 "student": {
                     "name": "",
                     "last_name": "",
                     "card_id": student_card_uid,
-                    "student_id": student_id
+                    "student_number": student_number
                 }
             }
             response_data = self.send_request(config.api_url + "/create_student", student_data)
             if response_data:
                 student = response_data['student']
-                print(student["student_id"])
+                print(student["student_number"])
                 print(student["card_id"])
-                self.lcd_rows[0] = [student['student_id'], -1]
+                self.lcd_rows[0] = [student['student_number'], -1]
                 self.lcd_rows[2] = ["Ogrenci Numarasi", -1]
                 self.lcd_rows[3] = ["Kaydedildi", -1]
                 self.lcd_rows[4] = ["", -1]
@@ -323,9 +323,12 @@ class NFCAttendance():
                     if self.current_lesson in student['lessons']:
                         self.lcd_rows[2] = [student['name'], -1]
                         self.lcd_rows[3] = [student['last_name'], -1]
-                        self.lcd_rows[4] = [student['student_id'], -1]
+                        self.lcd_rows[4] = [student['student_number'], -1]
                         self.show_on_screen()
                         # todo yoklama bilgisinin veri tabanına kaydı işlemleri yapılacak
+                        attendance_data = {
+
+                        }
                         sleep(2)  # sleep for showing student info
                     else:
                         self.lcd_rows[2] = ["Derse", -1]
