@@ -88,25 +88,6 @@ class NFCAttendance():
         # start waiting
         self.wait()
 
-    def get_access_key(self):
-        """
-        Access key expire in one day. İf self.ACCESS_KEY = None get new access key
-        :return:
-        """
-        if not self.ACCESS_KEY:
-            data = {
-                "username": config.api_username,
-                "password": config.api_passwd
-            }
-            url = config.api_url + "/login"
-
-            response_data = self.send_request(url, data)
-            if response_data:
-                self.ACCESS_KEY = response_data['access_token']
-            else:
-                print("İstek başarısız!")
-                return False
-
     def send_request(self, url: str, data: dict):
         """
 
@@ -120,22 +101,32 @@ class NFCAttendance():
             'Accept': '*/*',
             'Authorization': "" if not self.ACCESS_KEY else "Bearer " + self.ACCESS_KEY
         }, data=json_data)
-        # İstek sonucunu kontrol etme
-        if response.status_code == 200:
-            print(url + " send request success")
-            data = response.json()
-            response.close()
-            return data
-        elif response.status_code == 401:
+
+        if response.status_code == 401:
             print("401 Kimlik Hatası")
             self.get_access_key()
             return self.send_request(url, data)
-        else:
-            print("İstek başarısız!")
-            print("Durum kodu = " + str(response.status_code))
-            print(response.json())
-            response.close()
-            return False
+        return response
+
+    def get_access_key(self):
+        """
+        Access key expire in one day. İf self.ACCESS_KEY = None get new access key
+        :return:
+        """
+        if not self.ACCESS_KEY:
+            data = {
+                "username": config.api_username,
+                "password": config.api_passwd
+            }
+            url = config.api_url + "/login"
+
+            response = self.send_request(url, data)
+
+            if response.status_code == 200:
+                self.ACCESS_KEY = response.json()['access_token']
+            else:
+                print("İstek başarısız!")
+                return False
 
     def center(self, msg):
         """
@@ -178,8 +169,9 @@ class NFCAttendance():
             data = {
                 "card_id": instructor_card_id
             }
-            response_data = self.send_request(config.api_url + "/get_schedule", data)
-            if response_data:
+            response = self.send_request(config.api_url + "/get_schedule", data)
+            if response.status_code == 200:
+                response_data = response.json()
                 self.lcd_rows[2] = [response_data["name"], -1]
                 self.lcd_rows[3] = [response_data["last_name"], -1]
                 self.lcd_rows[4] = ["Programi Alindi", -1]
@@ -216,8 +208,9 @@ class NFCAttendance():
                     "student_number": student_number
                 }
             }
-            response_data = self.send_request(config.api_url + "/create_student", student_data)
-            if response_data:
+            response = self.send_request(config.api_url + "/create_student", student_data)
+            if response.status_code == 200:
+                response_data = response.json()
                 student = response_data['student']
                 print(student["student_number"])
                 print(student["card_id"])
@@ -303,9 +296,9 @@ class NFCAttendance():
         self.lcd_rows[3] = ["Ediliyor", -1]
         self.lcd_rows[4] = ["", -1]
         self.show_on_screen()
-        response_data = self.send_request(config.api_url + "/get_student", {"card_id": student_card_uid})
-        if response_data:
-            return response_data.get('student')
+        response = self.send_request(config.api_url + "/get_student", {"card_id": student_card_uid})
+        if response.status_code == 200:
+            return response.json().get('student')
         else:
             return False
 
@@ -330,12 +323,19 @@ class NFCAttendance():
                             "lesson_code": self.current_lesson_code,
                             "start_hour": self.current_lesson_start_hour
                         }
-                        response_data = self.send_request(config.api_url + "/take_attendance", attendance_data)
-                        print(response_data)
-                        if response_data:
+                        response = self.send_request(config.api_url + "/take_attendance", attendance_data)
+                        if response.status_code == 200:
+
                             self.lcd_rows[2] = [student['name'], -1]
                             self.lcd_rows[3] = [student['last_name'], -1]
                             self.lcd_rows[4] = [student['student_number'], -1]
+                            self.show_on_screen()
+
+                            sleep(2)  # sleep for showing student info
+                        elif response.status_code == 429:
+                            self.lcd_rows[2] = ["Zaten", -1]
+                            self.lcd_rows[3] = ["Yoklama Kaydınız", -1]
+                            self.lcd_rows[4] = ["Var", -1]
                             self.show_on_screen()
 
                             sleep(2)  # sleep for showing student info
