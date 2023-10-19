@@ -1,8 +1,7 @@
 """
 NFC kullanarak yoklama alma işlermleri
 """
-from lib.mfrc522 import MFRC522
-from machine import Pin, SPI, SoftI2C
+from machine import Pin, SoftI2C
 import deneyap
 import network
 import lib.urquest as urequests
@@ -12,6 +11,8 @@ import ntptime
 import json
 import lib.ssd1306 as oledFW
 
+from Buzzer import Buzzer
+from NFCReader import NFC
 wlan = None
 
 
@@ -67,9 +68,6 @@ class NFCAttendance():
         self.student_list = {}
         self.current_lesson_code = ""
         self.current_lesson_start_hour = 0
-        pin_miso = Pin(deneyap.MISO)
-        pin_mosi = Pin(deneyap.MOSI)
-        pin_sck = Pin(deneyap.SCK)
 
         self.i2c = SoftI2C(sda=Pin(deneyap.SDA), scl=Pin(deneyap.SCL))
         self.oled = oledFW.SSD1306_I2C(128, 64, self.i2c, addr=0x3d)
@@ -77,14 +75,12 @@ class NFCAttendance():
         self.oled.contrast(255)
         self.oled.invert(1)
 
-        self.NFC_SPI = SPI(1, baudrate=2500000, polarity=0, phase=0, miso=pin_miso, mosi=pin_mosi, sck=pin_sck)
-        self.NFC_SPI.init()
-        self.NFC = MFRC522(spi=self.NFC_SPI, gpioRst=deneyap.D0, gpioCs=deneyap.SDA)
+        self.NFC = NFC()
 
-        self.NFC_SPI.deinit()
         self.connect_wifi(self)
         set_time()
         self.get_access_key()
+        self.buzzer = Buzzer(deneyap.D8)
         # start waiting
         self.wait()
 
@@ -160,7 +156,7 @@ class NFCAttendance():
         self.lcd_rows[4] = ["Okutun", -1]
         self.show_on_screen()
 
-        instructor_card_id = self.read_card_uid()
+        instructor_card_id = self.NFC.read_card_uid()
         if instructor_card_id:
             self.lcd_rows[2] = ["Kart", -1]
             self.lcd_rows[3] = ["Kontrol", -1]
@@ -266,31 +262,6 @@ class NFCAttendance():
             self.lcd_rows[0] = ["", -1]  # clear lesson name
             return False
 
-    def read_card_uid(self):
-        """
-        try to read NFC Card id in 10 second
-        :return: string uid
-        """
-        self.NFC_SPI.init()
-        start_time = ticks_ms()
-        timeout = 10000  # 10 saniye süreyle okuma yapmaya çalış
-
-        while ticks_diff(ticks_ms(), start_time) < timeout:
-            (stat, tag_type) = self.NFC.request(self.NFC.REQIDL)
-
-            if stat == self.NFC.OK:
-                (stat, raw_uid) = self.NFC.anticoll()
-
-                if stat == self.NFC.OK:
-                    uid = "%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3])
-                    self.NFC.stop_crypto1()
-                    self.NFC_SPI.deinit()
-                    return uid
-
-        # Belirli süre içinde kart okunmadıysa, None değeri döndür
-        self.NFC_SPI.deinit()
-        return None
-
     def get_student(self, student_card_uid):
         self.lcd_rows[2] = ["Kart Kontrol", -1]
         self.lcd_rows[3] = ["Ediliyor", -1]
@@ -308,7 +279,7 @@ class NFCAttendance():
             self.lcd_rows[3] = ["Icin", -1]
             self.lcd_rows[4] = ["Kart Okut", -1]
             self.show_on_screen()
-            student_card_uid = self.read_card_uid()
+            student_card_uid = self.NFC.read_card_uid()
             if student_card_uid:
                 '''
                     If student card id read
@@ -359,6 +330,7 @@ class NFCAttendance():
                             sleep(0.5)  # 0.5 saniye bekle
                             break  # Döngüden çık
         except Exception as e:
+            print("take_attendance hatası")
             print(e.args)
 
     def wait(self):
@@ -367,6 +339,7 @@ class NFCAttendance():
         :return:
         """
         print("wait")
+        self.buzzer.beep(700,1000)
         while not self.is_schedule_exist:
             self.is_schedule_exist = self.get_schedule()
         while True:
