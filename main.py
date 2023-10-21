@@ -18,3 +18,5 @@ try:
     app = NFCAttendance()
 except KeyboardInterrupt:
     print("İşlem Sonlandırıldı ")
+    oled = Oled()
+    oled.show()
