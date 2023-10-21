@@ -1,14 +1,14 @@
-from machine import Pin
+from machine import Pin, lightsleep
 import deneyap
 import lib.urquest as urequests
 import config
-from time import sleep, mktime, ticks_ms, ticks_diff
+from time import mktime, ticks_ms, ticks_diff
 import json
 from boot import tr_time
 
-from Buzzer import Buzzer
 from NFCReader import NFC
 from Display import Oled
+
 wlan = None
 
 
@@ -28,7 +28,6 @@ class NFCAttendance():
         self.oled = Oled()
 
         self.get_access_key()
-        self.buzzer = Buzzer(deneyap.D8)
         # start waiting
         self.wait()
 
@@ -84,6 +83,7 @@ class NFCAttendance():
             self.oled.rows[3] = ["Kontrol", -1]
             self.oled.rows[4] = ["Ediliyor", -1]
             self.oled.show()
+            lightsleep(2000)
             data = {
                 "card_id": instructor_card_id
             }
@@ -94,7 +94,7 @@ class NFCAttendance():
                 self.oled.rows[3] = [response_data["last_name"], -1]
                 self.oled.rows[4] = ["Programi Alindi", -1]
                 self.oled.show()
-                sleep(2)
+                lightsleep(2000)
                 self.schedule = json.loads(response_data['schedule'])
                 return True
             else:
@@ -102,7 +102,7 @@ class NFCAttendance():
                 self.oled.rows[3] = ["Hoca Bulunamadi", -1]
                 self.oled.rows[4] = ["", -1]
                 self.oled.show()
-                sleep(2)
+                lightsleep(2000)
                 return False
         else:
             return False
@@ -137,7 +137,7 @@ class NFCAttendance():
                 self.oled.rows[3] = ["Kaydedildi", -1]
                 self.oled.rows[4] = ["", -1]
                 self.oled.show()
-                sleep(2)
+                lightsleep(2000)
 
     def check_lesson_time(self):
         """
@@ -223,20 +223,20 @@ class NFCAttendance():
                             self.oled.rows[4] = [student['student_number'], -1]
                             self.oled.show()
 
-                            sleep(2)  # sleep for showing student info
+                            lightsleep(2000)  # sleep for showing student info
                         elif response.status_code == 429:
                             self.oled.rows[2] = ["Zaten", -1]
                             self.oled.rows[3] = ["Yoklama Kaydınız", -1]
                             self.oled.rows[4] = ["Var", -1]
                             self.oled.show()
 
-                            sleep(2)  # sleep for showing student info
+                            lightsleep(2000)  # sleep for showing student info
                     else:
                         self.oled.rows[2] = ["Derse", -1]
                         self.oled.rows[3] = ["Kaydınız", -1]
                         self.oled.rows[4] = ["Bununmuyor", -1]
                         self.oled.show()
-                        sleep(2)  # sleep for showing student info
+                        lightsleep(2000)  # sleep for showing student info
                 else:
                     self.oled.rows[2] = ["Kayıtsız Öğrenci", -1]
                     self.oled.rows[3] = ["Kaydetmek için", -1]
@@ -248,11 +248,16 @@ class NFCAttendance():
                     while ticks_diff(ticks_ms(), start_time) < 5000:
                         if buton_pin.value() == 0:  # Buton basıldıysa
                             self.add_new_student(student_card_uid)
-                            sleep(0.5)  # 0.5 saniye bekle
+                            lightsleep(500)  # 0.5 saniye bekle
                             break  # Döngüden çık
         except Exception as e:
             print("take_attendance hatası")
             print(e.args)
+            self.oled.rows[2] = ["Bir Hata Oldu", -1]
+            self.oled.rows[3] = ["Tekrar", -1]
+            self.oled.rows[4] = ["Deneyin", -1]
+            self.oled.show()
+            lightsleep(5000)
 
     def wait(self):
         """
@@ -260,7 +265,6 @@ class NFCAttendance():
         :return:
         """
         print("wait")
-        self.buzzer.beep(700,1000)
         while not self.is_schedule_exist:
             self.is_schedule_exist = self.get_schedule()
         while True:
@@ -272,4 +276,4 @@ class NFCAttendance():
                 self.oled.rows[3] = ["bekleniyor", -1]
                 self.oled.rows[4] = ["", -1]
                 self.oled.show()
-                sleep(60 * 60 * 5)
+                lightsleep(60 * 60 * 5 * 1000)
