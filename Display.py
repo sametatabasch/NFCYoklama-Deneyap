@@ -5,7 +5,7 @@ import deneyap
 
 class Oled:
 
-    def __init__(self, width: int = 124, height: int = 64, sda: int = None, scl: int = None, address=None):
+    def __init__(self, width: int = 128, height: int = 64, sda: int = None, scl: int = None, address=None):
         """
 
         :param width: Oled ekran genişliği (px)
