@@ -26,7 +26,7 @@ class NFC:
         """
         self.NFC_SPI.init()
         start_time = ticks_ms()
-        timeout = 10000  # 10 saniye süreyle okuma yapmaya çalış
+        timeout = 1000  # 10 saniye süreyle okuma yapmaya çalış
 
         while ticks_diff(ticks_ms(), start_time) < timeout:
             (stat, tag_type) = self.Reader.request(self.Reader.REQIDL)

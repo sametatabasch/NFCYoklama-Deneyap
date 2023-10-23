@@ -1,13 +1,13 @@
-from machine import Pin, lightsleep
 import deneyap
 import lib.urquest as urequests
 import config
-from time import mktime, ticks_ms, ticks_diff
+from time import mktime, sleep_ms
 import json
 from boot import tr_time
 
 from NFCReader import NFC
 from Display import Oled
+from Keypad import Keypad
 
 wlan = None
 
@@ -26,6 +26,7 @@ class NFCAttendance():
 
         self.NFC = NFC()
         self.oled = Oled()
+        self.keypad = Keypad()
 
         self.get_access_key()
         # start waiting
@@ -83,7 +84,7 @@ class NFCAttendance():
             self.oled.rows[3] = ["Kontrol", -1]
             self.oled.rows[4] = ["Ediliyor", -1]
             self.oled.show()
-            lightsleep(2000)
+            sleep_ms(2000)
             data = {
                 "card_id": instructor_card_id
             }
@@ -94,7 +95,7 @@ class NFCAttendance():
                 self.oled.rows[3] = [response_data["last_name"], -1]
                 self.oled.rows[4] = ["Programi Alindi", -1]
                 self.oled.show()
-                lightsleep(2000)
+                sleep_ms(2000)
                 self.schedule = json.loads(response_data['schedule'])
                 return True
             else:
@@ -102,7 +103,7 @@ class NFCAttendance():
                 self.oled.rows[3] = ["Hoca Bulunamadi", -1]
                 self.oled.rows[4] = ["", -1]
                 self.oled.show()
-                lightsleep(2000)
+                sleep_ms(2000)
                 return False
         else:
             return False
@@ -137,7 +138,7 @@ class NFCAttendance():
                 self.oled.rows[3] = ["Kaydedildi", -1]
                 self.oled.rows[4] = ["", -1]
                 self.oled.show()
-                lightsleep(2000)
+                sleep_ms(2000)
 
     def check_lesson_time(self):
         """
@@ -223,33 +224,31 @@ class NFCAttendance():
                             self.oled.rows[4] = [student['student_number'], -1]
                             self.oled.show()
 
-                            lightsleep(2000)  # sleep for showing student info
+                            sleep_ms(2000)  # sleep for showing student info
                         elif response.status_code == 429:
                             self.oled.rows[2] = ["Zaten", -1]
                             self.oled.rows[3] = ["Yoklama Kaydınız", -1]
                             self.oled.rows[4] = ["Var", -1]
                             self.oled.show()
 
-                            lightsleep(2000)  # sleep for showing student info
+                            sleep_ms(2000)  # sleep for showing student info
                     else:
                         self.oled.rows[2] = ["Derse", -1]
                         self.oled.rows[3] = ["Kaydınız", -1]
                         self.oled.rows[4] = ["Bununmuyor", -1]
                         self.oled.show()
-                        lightsleep(2000)  # sleep for showing student info
+                        sleep_ms(2000)  # sleep for showing student info
                 else:
                     self.oled.rows[2] = ["Kayıtsız Öğrenci", -1]
                     self.oled.rows[3] = ["Kaydetmek için", -1]
-                    self.oled.rows[4] = ["Butona basın", -1]
+                    self.oled.rows[4] = ["A'ya basın", -1]
                     self.oled.show()
-                    buton_pin = Pin(deneyap.GPKEY, Pin.IN, Pin.PULL_UP)
+
                     # Buton 5 saniye içinde basılıp basılmadığını kontrol et
-                    start_time = ticks_ms()  # Başlangıç zamanı
-                    while ticks_diff(ticks_ms(), start_time) < 5000:
-                        if buton_pin.value() == 0:  # Buton basıldıysa
-                            self.add_new_student(student_card_uid)
-                            lightsleep(500)  # 0.5 saniye bekle
-                            break  # Döngüden çık
+                    key = self.keypad.get_key(5000)
+                    if key == 'A':
+                        self.add_new_student(student_card_uid)
+            print("take_attendace bitti")
         except Exception as e:
             print("take_attendance hatası")
             print(e.args)
@@ -257,8 +256,19 @@ class NFCAttendance():
             self.oled.rows[3] = ["Tekrar", -1]
             self.oled.rows[4] = ["Deneyin", -1]
             self.oled.show()
-            lightsleep(5000)
+            sleep_ms(5000)
 
+    def manuel_attendance(self):
+        self.oled.rows[2] = ["Öğrenci Numarası:", -1]
+        self.oled.rows[3] = ["", -1]
+        self.oled.rows[4] = ["", -1]
+        self.oled.show()
+        sleep_ms(1000)
+        keys=[]
+        for i in range(9):
+            keys.append(self.keypad.get_key())
+            self.oled.rows[3] = ["".join(keys), -1]
+            self.oled.show()
     def wait(self):
         """
         wait for lesson time
@@ -270,10 +280,13 @@ class NFCAttendance():
         while True:
             if self.check_lesson_time():
                 self.take_attendance()
+                key = self.keypad.get_key(500)
+                if key == "*":
+                    self.manuel_attendance()
             else:
                 self.oled.rows[0] = ["", -1]
                 self.oled.rows[2] = ["Ders", -1]
                 self.oled.rows[3] = ["bekleniyor", -1]
                 self.oled.rows[4] = ["", -1]
                 self.oled.show()
-                lightsleep(60 * 60 * 5 * 1000)
+                sleep_ms(60 * 60 * 5 * 1000)
