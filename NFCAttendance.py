@@ -39,18 +39,24 @@ class NFCAttendance():
         :param data:
         :return: json
         """
-        json_data = json.dumps(data)
-        response = urequests.post(url, headers={
-            'Content-type': 'application/json',
-            'Accept': '*/*',
-            'Authorization': "" if not self.ACCESS_KEY else "Bearer " + self.ACCESS_KEY
-        }, data=json_data)
+        try:
+            json_data = json.dumps(data)
+            response = urequests.post(url, headers={
+                'Content-type': 'application/json',
+                'Accept': '*/*',
+                'Authorization': "" if not self.ACCESS_KEY else "Bearer " + self.ACCESS_KEY
+            }, data=json_data)
 
-        if response.status_code == 401:
-            print("401 Kimlik Hatası")
-            self.get_access_key()
-            return self.send_request(url, data)
-        return response
+            if response.status_code == 401:
+                print("401 Kimlik Hatası")
+                self.get_access_key()
+                return self.send_request(url, data)
+            return response
+        except Exception as e:
+            #todo bağlantı hatası olduğunda send request fonksiyonunu kullanan tüm fonksiyonlarda ne şekilde davranılacağı belirlenmeli
+            print("Bağlantı Hatası")
+            print(e)
+            return False
 
     def get_access_key(self):
         """
