@@ -1,22 +1,36 @@
 # boot.py -- run on boot-up
 import ntptime
-from time import time, gmtime, localtime
+from time import time, gmtime, sleep, ticks_ms, ticks_diff
 
 import network
 import config
-from time import sleep
 
 def connect_wifi():
     global wlan
-    wlan = network.WLAN(network.STA_IF)  # create a wlan object
-    wlan.active(True)  # Activate the network interface
-    wlan.disconnect()  # Disconnect the last connected WiFi
-    wlan.connect(config.wifi['ssid'], config.wifi['password'])  # connect wifi
-    while (wlan.ifconfig()[0] == '0.0.0.0'):
-        print("İnternete Bağlanılıyor.")
-        sleep(1)
-        pass
-    return True
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    wlan.disconnect()
+
+    for network_config in config.wifi:
+        print("Bağlanmaya çalışılan ağ:", network_config['ssid'])
+        wlan.connect(network_config['ssid'], network_config.get('password'))
+
+        start_time = ticks_ms()
+        timeout = 10000  # 10 saniye süreyle okuma yapmaya çalış
+
+        while (wlan.ifconfig()[0] == '0.0.0.0') and ticks_diff(ticks_ms(), start_time) < timeout:
+            print("İnternete Bağlanılıyor.")
+            sleep(1)
+
+        if wlan.isconnected():
+            print("Bağlantı başarılı! IP adresi:", wlan.ifconfig()[0])
+            return True
+        else:
+            print("Bağlantı başarısız. Diğer ağı deneyin.")
+            wlan.disconnect()
+
+    print("Bağlantı başarısız.")
+    return False
 
 
 def set_time():
