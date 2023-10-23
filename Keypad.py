@@ -1,6 +1,7 @@
 from machine import Pin
-from time import sleep
+from time import sleep, ticks_ms, ticks_diff
 import deneyap
+
 
 class Keypad:
 
@@ -40,17 +41,29 @@ class Keypad:
 
             self.row_pins[row].off()
 
-    def get_key(self):
-
-        while self.pressed_key is None:
+    def get_key(self, timeout: int = None):
+        """
+        Get one char from Keypad
+        :param timeout: time out in millisecond(ms)
+        :return str| None: Pressed key value
+        """
+        timeout = 0 if timeout is None else timeout
+        start_time = ticks_ms()
+        while self.pressed_key is None and (ticks_diff(ticks_ms(), start_time) < timeout or timeout == 0):
             self.scankeys()
         key = self.pressed_key
         self.pressed_key = None
         return key
 
-    def get_keys(self, count):
+    def get_keys(self, count: int, timeout: int = None):
+        """
+
+        :param count: Number of wanted keys
+        :param timeout: time out in millisecond(ms) for each key
+        :return list: list of keys
+        """
         keys = []
         for i in range(count):
-            keys.append(self.get_key())
+            keys.append(self.get_key(timeout))
 
         return keys
