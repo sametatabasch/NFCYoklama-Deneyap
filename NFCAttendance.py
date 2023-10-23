@@ -53,7 +53,7 @@ class NFCAttendance():
                 return self.send_request(url, data)
             return response
         except Exception as e:
-            #todo bağlantı hatası olduğunda send request fonksiyonunu kullanan tüm fonksiyonlarda ne şekilde davranılacağı belirlenmeli
+            # todo bağlantı hatası olduğunda send request fonksiyonunu kullanan tüm fonksiyonlarda ne şekilde davranılacağı belirlenmeli
             print("Bağlantı Hatası")
             print(e)
             return False
@@ -191,22 +191,28 @@ class NFCAttendance():
             self.oled.rows[0] = ["", -1]  # clear lesson name
             return False
 
-    def get_student(self, student_card_uid):
-        self.oled.rows[2] = ["Kart Kontrol", -1]
+    def get_student(self, student_data: dict):
+        self.oled.rows[2] = ["Öğrenci Kontrol", -1]
         self.oled.rows[3] = ["Ediliyor", -1]
         self.oled.rows[4] = ["", -1]
         self.oled.show()
-        response = self.send_request(config.api_url + "/get_student", {"card_id": student_card_uid})
+        sleep_ms(1000)
+        response = self.send_request(config.api_url + "/get_student", student_data)
         if response.status_code == 200:
             return response.json().get('student')
         else:
+            print("Öğrenci bilgileir alınırken sorun oldu")
+            print(response)
+            print(response.json())
+            print(student_data)
             return False
 
-    def take_attendance(self):
+    def card_attendance(self):
         try:
             self.oled.rows[2] = ["Yoklama", -1]
             self.oled.rows[3] = ["Icin", -1]
             self.oled.rows[4] = ["Kart Okut", -1]
+            self.oled.rows[7] = ["*'a basılı tut", -1]
             self.oled.show()
             student_card_uid = self.NFC.read_card_uid()
             if student_card_uid:
@@ -214,47 +220,8 @@ class NFCAttendance():
                     If student card id read
                 '''
                 print(student_card_uid)
-                student = self.get_student(student_card_uid)
-                if student:
-                    if self.current_lesson_code in student['lessons']:
-                        attendance_data = {
-                            "student_id": student['id'],
-                            "lesson_code": self.current_lesson_code,
-                            "start_hour": self.current_lesson_start_hour
-                        }
-                        response = self.send_request(config.api_url + "/take_attendance", attendance_data)
-                        if response.status_code == 200:
+                self.save_attendance({'card_id': student_card_uid})
 
-                            self.oled.rows[2] = [student['name'], -1]
-                            self.oled.rows[3] = [student['last_name'], -1]
-                            self.oled.rows[4] = [student['student_number'], -1]
-                            self.oled.show()
-
-                            sleep_ms(2000)  # sleep for showing student info
-                        elif response.status_code == 429:
-                            self.oled.rows[2] = ["Zaten", -1]
-                            self.oled.rows[3] = ["Yoklama Kaydınız", -1]
-                            self.oled.rows[4] = ["Var", -1]
-                            self.oled.show()
-
-                            sleep_ms(2000)  # sleep for showing student info
-                    else:
-                        self.oled.rows[2] = ["Derse", -1]
-                        self.oled.rows[3] = ["Kaydınız", -1]
-                        self.oled.rows[4] = ["Bununmuyor", -1]
-                        self.oled.show()
-                        sleep_ms(2000)  # sleep for showing student info
-                else:
-                    self.oled.rows[2] = ["Kayıtsız Öğrenci", -1]
-                    self.oled.rows[3] = ["Kaydetmek için", -1]
-                    self.oled.rows[4] = ["A'ya basın", -1]
-                    self.oled.show()
-
-                    # Buton 5 saniye içinde basılıp basılmadığını kontrol et
-                    key = self.keypad.get_key(5000)
-                    if key == 'A':
-                        self.add_new_student(student_card_uid)
-            print("take_attendace bitti")
         except Exception as e:
             print("take_attendance hatası")
             print(e.args)
@@ -265,16 +232,94 @@ class NFCAttendance():
             sleep_ms(5000)
 
     def manuel_attendance(self):
-        self.oled.rows[2] = ["Öğrenci Numarası:", -1]
-        self.oled.rows[3] = ["", -1]
+        self.oled.rows[2] = ["Öğrenci :", -1]
+        self.oled.rows[3] = ["Numarası", -1]
         self.oled.rows[4] = ["", -1]
+        self.oled.rows[7] = ["A Sil | B Çık", -1]
         self.oled.show()
         sleep_ms(1000)
-        keys=[]
-        for i in range(9):
-            keys.append(self.keypad.get_key())
-            self.oled.rows[3] = ["".join(keys), -1]
+        keys = []
+        while len(keys) < 9:
+            key = self.keypad.get_key()
+            if key == "A":
+                keys.pop()
+            elif key == "B":
+                return False
+            elif key in ["1","2","3","4","5","6","7","8","9","0"]:
+                keys.append(key)
+
+            self.oled.rows[4] = ["".join(keys), -1]
             self.oled.show()
+        self.oled.rows[2] = ["Onaylıyor", -1]
+        self.oled.rows[3] = ["musunuz?", -1]
+        self.oled.rows[4] = ["".join(keys), -1]
+        self.oled.rows[7] = ["A Evet | B Çık", -1]
+        self.oled.show()
+        onay = self.keypad.get_key()
+        if onay=="A":
+            self.save_attendance({"student_number": "".join(keys)})
+        else:
+            return False
+
+    def save_attendance(self, student_data):
+        print("save_attendance")
+        try:
+            student = self.get_student(student_data)
+            if student:
+                if self.current_lesson_code in student['lessons']:
+                    attendance_data = {
+                        "student_id": student['id'],
+                        "lesson_code": self.current_lesson_code,
+                        "start_hour": self.current_lesson_start_hour
+                    }
+                    response = self.send_request(config.api_url + "/take_attendance", attendance_data)
+                    if response.status_code == 200:
+
+                        self.oled.rows[2] = [student['name'], -1]
+                        self.oled.rows[3] = [student['last_name'], -1]
+                        self.oled.rows[4] = [student['student_number'], -1]
+                        self.oled.show()
+
+                        sleep_ms(2000)  # sleep for showing student info
+                    elif response.status_code == 429:
+                        self.oled.rows[2] = ["Zaten", -1]
+                        self.oled.rows[3] = ["Yoklama Kaydınız", -1]
+                        self.oled.rows[4] = ["Var", -1]
+                        self.oled.show()
+
+                        sleep_ms(2000)  # sleep for showing student info
+                else:
+                    self.oled.rows[2] = ["Derse", -1]
+                    self.oled.rows[3] = ["Kaydınız", -1]
+                    self.oled.rows[4] = ["Bununmuyor", -1]
+                    self.oled.show()
+                    sleep_ms(2000)  # sleep for showing student info
+            else:
+                self.oled.rows[2] = ["Kayıtsız Öğrenci", -1]
+                if student_data.get("card_id"):
+                    self.oled.rows[3] = ["Kaydetmek için", -1]
+                    self.oled.rows[4] = ["A'ya basın", -1]
+                    self.oled.show()
+
+                    # Buton 5 saniye içinde basılıp basılmadığını kontrol et
+                    key = self.keypad.get_key(5000)
+                    if key == 'A':
+                        if student_data.get("card_id") is not None:
+                            self.add_new_student(student_data['card_id'])
+                else:
+                    self.oled.rows[3] = ["", -1]
+                    self.oled.rows[4] = ["", -1]
+                    self.oled.show()
+                    sleep_ms(1000)
+        except Exception as e:
+            print("take_attendance hatası")
+            print(e.args)
+            self.oled.rows[2] = ["Bir Hata Oldu", -1]
+            self.oled.rows[3] = ["Tekrar", -1]
+            self.oled.rows[4] = ["Deneyin", -1]
+            self.oled.show()
+            sleep_ms(5000)
+
     def wait(self):
         """
         wait for lesson time
@@ -285,7 +330,7 @@ class NFCAttendance():
             self.is_schedule_exist = self.get_schedule()
         while True:
             if self.check_lesson_time():
-                self.take_attendance()
+                self.card_attendance()
                 key = self.keypad.get_key(500)
                 if key == "*":
                     self.manuel_attendance()
