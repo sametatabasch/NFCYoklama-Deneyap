@@ -115,15 +115,8 @@ class NFCAttendance():
             return False
 
     def add_new_student(self, student_card_uid):
-        answer = input("Öğrenci bilgileri kaydedilsin mi? e/h \n")
-        if answer == "e":
-            self.oled.rows[0] = ["", -1]
-            self.oled.rows[2] = ["Ogrenci Numarasi", -1]
-            self.oled.rows[3] = ["Kaydediliyor", -1]
-            self.oled.rows[4] = ["...", -1]
-            self.oled.show()
-
-            student_number = input("Öğrenci Numarasını girin:")
+        student_number = self.get_student_number_with_keypad()
+        if student_number:
 
             student_data = {
                 "student": {
@@ -231,7 +224,7 @@ class NFCAttendance():
             self.oled.show()
             sleep_ms(5000)
 
-    def manuel_attendance(self):
+    def get_student_number_with_keypad(self):
         self.oled.rows[2] = ["Öğrenci :", -1]
         self.oled.rows[3] = ["Numarası", -1]
         self.oled.rows[4] = ["", -1]
@@ -245,7 +238,7 @@ class NFCAttendance():
                 keys.pop()
             elif key == "B":
                 return False
-            elif key in ["1","2","3","4","5","6","7","8","9","0"]:
+            elif key in ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]:
                 keys.append(key)
 
             self.oled.rows[4] = ["".join(keys), -1]
@@ -256,8 +249,15 @@ class NFCAttendance():
         self.oled.rows[7] = ["A Evet | B Çık", -1]
         self.oled.show()
         onay = self.keypad.get_key()
-        if onay=="A":
-            self.save_attendance({"student_number": "".join(keys)})
+        if onay == "A":
+            return "".join(keys)
+        else:
+            return False
+
+    def manuel_attendance(self):
+        std_number = self.get_student_number_with_keypad()
+        if std_number:
+            self.save_attendance({"student_number": std_number})
         else:
             return False
 
