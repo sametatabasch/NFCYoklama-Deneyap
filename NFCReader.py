@@ -1,5 +1,6 @@
+import config
 from lib.mfrc522 import MFRC522
-import deneyap
+import deneyap,config
 from machine import SPI, Pin
 
 from time import ticks_ms, ticks_diff
@@ -7,11 +8,11 @@ from time import ticks_ms, ticks_diff
 
 class NFC:
     def __init__(self, miso: int = None, mosi: int = None, sck: int = None, rst: int = None, cs: int = None):
-        pin_miso = Pin(deneyap.MISO) if miso is None else Pin(miso)
-        pin_mosi = Pin(deneyap.MOSI) if mosi is None else Pin(mosi)
-        pin_sck = Pin(deneyap.SCK) if sck is None else Pin(sck)
-        pin_rst = deneyap.D0 if rst is None else rst
-        pin_cs = deneyap.D1 if rst is None else cs
+        pin_miso = Pin(config.NFC.get("miso")) if miso is None else Pin(miso)
+        pin_mosi = Pin(config.NFC.get("mosi")) if mosi is None else Pin(mosi)
+        pin_sck = Pin(config.NFC.get("sck")) if sck is None else Pin(sck)
+        pin_rst = config.NFC.get("rst") if rst is None else rst
+        pin_cs = config.NFC.get("cs") if rst is None else cs
         self.NFC_SPI = SPI(1, baudrate=2500000, polarity=0, phase=0, miso=pin_miso, mosi=pin_mosi, sck=pin_sck)
         self.NFC_SPI.init()
         self.Reader = MFRC522(spi=self.NFC_SPI, gpioRst=pin_rst, gpioCs=pin_cs)

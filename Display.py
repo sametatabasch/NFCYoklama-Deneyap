@@ -1,6 +1,6 @@
 import lib.ssd1306 as oledFW
 from machine import Pin, SoftI2C
-import deneyap
+import deneyap,config
 
 
 class Oled:
@@ -18,9 +18,9 @@ class Oled:
         :type scl: int
         :param address: Oled ekran I2C adresi
         """
-        pin_sda = Pin(deneyap.SDA) if sda is None else Pin(sda)
-        pin_scl = Pin(deneyap.SCL) if scl is None else Pin(scl)
-        address = 0x3d if address is None else address
+        pin_sda = Pin(config.Display.get("SDA")) if sda is None else Pin(sda)
+        pin_scl = Pin(config.Display.get("SCL")) if scl is None else Pin(scl)
+        address = config.Display.get("i2c_address") if address is None else address
         self.width = width
         self.height = height
         self.rows = [

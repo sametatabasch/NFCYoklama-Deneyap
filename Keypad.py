@@ -14,15 +14,15 @@ class Keypad:
 
         # PINs according to schematic - Change the pins to match with your connections
         keypad_rows = [
-            config.Pins.get("keypad_row1"),
-            config.Pins.get("keypad_row2"),
-            config.Pins.get("keypad_row3"),
-            config.Pins.get("keypad_row4")]
+            config.Keypad.get("row1"),
+            config.Keypad.get("row2"),
+            config.Keypad.get("row3"),
+            config.Keypad.get("row4")]
         keypad_columns = [
-            config.Pins.get("keypad_col1"),
-            config.Pins.get("keypad_col2"),
-            config.Pins.get("keypad_col3"),
-            config.Pins.get("keypad_col4")]
+            config.Keypad.get("col1"),
+            config.Keypad.get("col2"),
+            config.Keypad.get("col3"),
+            config.Keypad.get("col4")]
 
         # Create two empty lists to set up pins ( Rows output and columns input )
         self.col_pins = []

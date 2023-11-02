@@ -28,7 +28,7 @@ class NFCAttendance():
         self.NFC = NFC()
         self.oled = Oled()
         self.keypad = Keypad()
-        self.buzzer = Buzzer(config.Pins.get("buzzer_pin"))
+        self.buzzer = Buzzer(config.Buzzer.get("pin"))
 
         self.get_access_key()
         # start waiting
