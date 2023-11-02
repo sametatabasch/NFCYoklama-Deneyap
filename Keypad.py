@@ -1,6 +1,6 @@
 from machine import Pin
 from time import sleep, ticks_ms, ticks_diff
-import deneyap
+import deneyap,config
 
 
 class Keypad:
@@ -13,8 +13,16 @@ class Keypad:
                             ['*', '0', '#', 'D']]
 
         # PINs according to schematic - Change the pins to match with your connections
-        keypad_rows = [deneyap.D12, deneyap.D13, deneyap.D14, deneyap.D15]
-        keypad_columns = [deneyap.DAC2, deneyap.DAC1, deneyap.A5, deneyap.A4]
+        keypad_rows = [
+            config.Pins.get("keypad_row1"),
+            config.Pins.get("keypad_row2"),
+            config.Pins.get("keypad_row3"),
+            config.Pins.get("keypad_row4")]
+        keypad_columns = [
+            config.Pins.get("keypad_col1"),
+            config.Pins.get("keypad_col2"),
+            config.Pins.get("keypad_col3"),
+            config.Pins.get("keypad_col4")]
 
         # Create two empty lists to set up pins ( Rows output and columns input )
         self.col_pins = []
