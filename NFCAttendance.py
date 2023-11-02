@@ -8,6 +8,7 @@ from boot import tr_time
 from NFCReader import NFC
 from Display import Oled
 from Keypad import Keypad
+from Buzzer import Buzzer
 
 wlan = None
 
@@ -27,6 +28,7 @@ class NFCAttendance():
         self.NFC = NFC()
         self.oled = Oled()
         self.keypad = Keypad()
+        self.buzzer = Buzzer(config.Pins.get("buzzer_pin"))
 
         self.get_access_key()
         # start waiting
@@ -212,6 +214,7 @@ class NFCAttendance():
                 '''
                     If student card id read
                 '''
+                self.buzzer.beep()
                 print(student_card_uid)
                 self.save_attendance({'card_id': student_card_uid})
 
@@ -274,7 +277,7 @@ class NFCAttendance():
                     }
                     response = self.send_request(config.api_url + "/take_attendance", attendance_data)
                     if response.status_code == 200:
-
+                        self.buzzer.beep(count=2)
                         self.oled.rows[2] = [student['name'], -1]
                         self.oled.rows[3] = [student['last_name'], -1]
                         self.oled.rows[4] = [student['student_number'], -1]
@@ -282,6 +285,7 @@ class NFCAttendance():
 
                         sleep_ms(2000)  # sleep for showing student info
                     elif response.status_code == 429:
+                        self.buzzer.beep(count=3, _sleep=150)
                         self.oled.rows[2] = ["Zaten", -1]
                         self.oled.rows[3] = ["Yoklama Kaydınız", -1]
                         self.oled.rows[4] = ["Var", -1]
@@ -289,6 +293,7 @@ class NFCAttendance():
 
                         sleep_ms(2000)  # sleep for showing student info
                 else:
+                    self.buzzer.beep(count=3, _sleep=150)
                     self.oled.rows[2] = ["Derse", -1]
                     self.oled.rows[3] = ["Kaydınız", -1]
                     self.oled.rows[4] = ["Bununmuyor", -1]
@@ -326,6 +331,7 @@ class NFCAttendance():
         :return:
         """
         print("wait")
+        self.buzzer.beep(count=4, _sleep=150)
         while not self.is_schedule_exist:
             self.is_schedule_exist = self.get_schedule()
         while True:
