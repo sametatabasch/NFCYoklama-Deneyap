@@ -48,12 +48,18 @@ class NFCAttendance():
                 'Accept': '*/*',
                 'Authorization': "" if not self.ACCESS_KEY else "Bearer " + self.ACCESS_KEY
             }, data=json_data)
-
-            if response.status_code == 401:
-                print("401 Kimlik Hatası")
-                self.get_access_key()
-                return self.send_request(url, data)
-            return response
+            if response:
+                if response.status_code == 401:
+                    print("401 Kimlik Hatası")
+                    self.get_access_key()
+                    return self.send_request(url, data)
+                return response
+            else:
+                self.oled.rows[2] = ["Sunucu", -1]
+                self.oled.rows[3] = ["Bağlantı", -1]
+                self.oled.rows[4] = ["Hatası", -1]
+                self.oled.show()
+                raise Exception("Sunucu ile Bağlantı kurulamadı")
         except Exception as e:
             # todo bağlantı hatası olduğunda send request fonksiyonunu kullanan tüm fonksiyonlarda ne şekilde davranılacağı belirlenmeli
             print("Bağlantı Hatası")
@@ -214,7 +220,6 @@ class NFCAttendance():
                 '''
                     If student card id read
                 '''
-                self.buzzer.beep()
                 print(student_card_uid)
                 self.save_attendance({'card_id': student_card_uid})
 
