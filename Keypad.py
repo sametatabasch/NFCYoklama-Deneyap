@@ -3,7 +3,8 @@ from time import sleep, ticks_ms, ticks_diff
 import config
 from Buzzer import Buzzer
 
-buzzer= Buzzer(config.Buzzer.get("pin"))
+buzzer = Buzzer(config.Buzzer.get("pin"))
+
 
 class Keypad:
 
@@ -51,10 +52,11 @@ class Keypad:
 
             self.row_pins[row].off()
 
-    def get_key(self, timeout: int = None):
+    def get_key(self, timeout: int = None, feedback=True):
         """
         Get one char from Keypad
         :param timeout: time out in millisecond(ms)
+        :param feedback: add beep sound for key press
         :return str| None: Pressed key value
         """
         timeout = 0 if timeout is None else timeout
@@ -62,8 +64,10 @@ class Keypad:
         while self.pressed_key is None and (ticks_diff(ticks_ms(), start_time) < timeout or timeout == 0):
             self.scankeys()
         key = self.pressed_key
-        self.pressed_key = None
-        buzzer.beep(_sleep=100)
+        if key is not None:
+            self.pressed_key = None
+        if feedback:
+            buzzer.beep(_sleep=100)
         return key
 
     def get_keys(self, count: int, timeout: int = None):
