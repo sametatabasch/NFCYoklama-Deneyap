@@ -1,11 +1,12 @@
 import config
 from lib.mfrc522 import MFRC522
-import deneyap,config
+import config
 from machine import SPI, Pin
+from Buzzer import Buzzer
 
 from time import ticks_ms, ticks_diff
 
-
+buzzer = Buzzer(config.Buzzer.get("pin"))
 class NFC:
     def __init__(self, miso: int = None, mosi: int = None, sck: int = None, rst: int = None, cs: int = None):
         pin_miso = Pin(config.NFC.get("miso")) if miso is None else Pin(miso)
@@ -39,6 +40,7 @@ class NFC:
                     uid = "%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3])
                     self.Reader.stop_crypto1()
                     self.NFC_SPI.deinit()
+                    buzzer.beep()
                     return uid
 
         # Belirli süre içinde kart okunmadıysa, None değeri döndür
