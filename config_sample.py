@@ -32,7 +32,9 @@ Keypad ={
 Display = {
     "i2c_address": 0x3d,
     "SDA": deneyap.SDA,
-    "SCL": deneyap.SCL
+    "SCL": deneyap.SCL,
+    "width":128,
+    "height":64
 }
 
 NFC = {
