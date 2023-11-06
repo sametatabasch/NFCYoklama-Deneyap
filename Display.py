@@ -5,7 +5,7 @@ import deneyap,config
 
 class Oled:
 
-    def __init__(self, width: int = 128, height: int = 64, sda: int = None, scl: int = None, address=None):
+    def __init__(self, width: int = config.Display.get("width"), height: int = config.Display.get("height"), sda: int = None, scl: int = None, address=None):
         """
 
         :param width: Oled ekran genişliği (px)
@@ -38,6 +38,7 @@ class Oled:
 
         self.screen.contrast(255)
         self.screen.invert(1)
+        print("Oled")
 
     def center(self, msg):
         """
@@ -55,8 +56,8 @@ class Oled:
         """
         self.screen.fill(0)  # clear screen
         if not Startup:
-            self.screen.hline(0, 12, 128, 1)  # draw horizontal line x=0, y=12, width=128, colour=1 center of 2. row
-            self.screen.hline(0, 52, 128, 1)  # draw horizontal line x=0, y=52, width=128, colour=1 center of 7. row
+            self.screen.hline(0, 12, config.Display.get("width"), 1)  # draw horizontal line x=0, y=12, width=128, colour=1 center of 2. row
+            self.screen.hline(0, 52, config.Display.get("width"), 1)  # draw horizontal line x=0, y=52, width=128, colour=1 center of 7. row
         row_num = 1
         for row in self.rows:
             if len(row) > 0:
