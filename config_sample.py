@@ -1,4 +1,4 @@
-import deneyap
+import lib.deneyap as deneyap
 
 wifi = [
     {

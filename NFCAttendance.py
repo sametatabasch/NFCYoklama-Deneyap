@@ -1,4 +1,3 @@
-import deneyap
 import lib.urquest as urequests
 import config
 from time import mktime, sleep_ms

@@ -1,6 +1,6 @@
 import lib.ssd1306 as oledFW
 from machine import Pin, SoftI2C
-import deneyap, config
+import config
 
 
 class Oled:
