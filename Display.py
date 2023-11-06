@@ -1,11 +1,12 @@
 import lib.ssd1306 as oledFW
 from machine import Pin, SoftI2C
-import deneyap,config
+import deneyap, config
 
 
 class Oled:
 
-    def __init__(self, width: int = config.Display.get("width"), height: int = config.Display.get("height"), sda: int = None, scl: int = None, address=None):
+    def __init__(self, width: int = config.Display.get("width"), height: int = config.Display.get("height"),
+                 sda: int = None, scl: int = None, address=None):
         """
 
         :param width: Oled ekran genişliği (px)
@@ -46,18 +47,20 @@ class Oled:
         :param msg: string to center
         :return int:
         """
-        return (self.width - len(msg) * 8) // 2
+        return (self.width - len(msg) * 8) // 2 if msg is not None else ""
 
-    def show(self, Startup=False):
+    def show(self, startup=False):
         """
 
-        :param rows: list: [[msg, x],... ] for centered text x= -1
+        :param startup: 
         :return:
         """
         self.screen.fill(0)  # clear screen
-        if not Startup:
-            self.screen.hline(0, 12, config.Display.get("width"), 1)  # draw horizontal line x=0, y=12, width=128, colour=1 center of 2. row
-            self.screen.hline(0, 52, config.Display.get("width"), 1)  # draw horizontal line x=0, y=52, width=128, colour=1 center of 7. row
+        if not startup:
+            self.screen.hline(0, 12, config.Display.get("width"),
+                              1)  # draw horizontal line x=0, y=12, width=128, colour=1 center of 2. row
+            self.screen.hline(0, 52, config.Display.get("width"),
+                              1)  # draw horizontal line x=0, y=52, width=128, colour=1 center of 7. row
         row_num = 1
         for row in self.rows:
             if len(row) > 0:
@@ -82,8 +85,10 @@ class Oled:
             "Ş": "S",
             "Ü": "U"
         }
-
-        result = input_string
-        for turkish_char, english_char in replacements.items():
-            result = result.replace(turkish_char, english_char)
-        return result
+        if input_string is not None:
+            result = input_string
+            for turkish_char, english_char in replacements.items():
+                result = result.replace(turkish_char, english_char)
+            return result
+        else:
+            return ""

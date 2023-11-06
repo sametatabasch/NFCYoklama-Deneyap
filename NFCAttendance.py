@@ -138,14 +138,25 @@ class NFCAttendance():
             if response.status_code == 200:
                 response_data = response.json()
                 student = response_data['student']
-                print(student["student_number"])
-                print(student["card_id"])
-                self.oled.rows[0] = [student['student_number'], -1]
-                self.oled.rows[2] = ["Ogrenci Numarasi", -1]
-                self.oled.rows[3] = ["Kaydedildi", -1]
-                self.oled.rows[4] = ["", -1]
+                if student and student["student_number"] is not None:
+                    print("student_number=", student["student_number"])
+                    print("student_card_id=", student["card_id"])
+                    self.oled.rows[0] = [student['student_number'], -1]
+                    self.oled.rows[2] = ["Ogrenci Numarasi", -1]
+                    self.oled.rows[3] = ["Kaydedildi", -1]
+                    self.oled.rows[4] = ["", -1]
+                    self.oled.show()
+                    sleep_ms(2000)
+                else:
+                    raise Exception("Öğrenci oluşturulurken hata oldu")
+            else:
+                print("Öğrenci kaydedilirken sorun oluştu")
+                self.oled.rows[0] = ["Öğrenci", -1]
+                self.oled.rows[2] = ["Kaydedilirken", -1]
+                self.oled.rows[3] = ["Sorun ", -1]
+                self.oled.rows[4] = ["Oluştu", -1]
                 self.oled.show()
-                sleep_ms(2000)
+                sleep_ms(1000)
 
     def check_lesson_time(self):
         """
@@ -224,7 +235,7 @@ class NFCAttendance():
                 self.save_attendance({'card_id': student_card_uid})
 
         except Exception as e:
-            print("take_attendance hatası")
+            print("card_attendance hatası")
             print(e.args)
             self.oled.rows[2] = ["Bir Hata Oldu", -1]
             self.oled.rows[3] = ["Tekrar", -1]
@@ -322,7 +333,7 @@ class NFCAttendance():
                     self.oled.show()
                     sleep_ms(1000)
         except Exception as e:
-            print("take_attendance hatası")
+            print("save_attendance hatası")
             print(e.args)
             self.oled.rows[2] = ["Bir Hata Oldu", -1]
             self.oled.rows[3] = ["Tekrar", -1]
@@ -332,7 +343,7 @@ class NFCAttendance():
 
     def wait(self):
         """
-        wait for lesson time
+        wait for lesson time and attendance
         :return:
         """
         print("wait")
@@ -342,7 +353,7 @@ class NFCAttendance():
         while True:
             if self.check_lesson_time():
                 self.card_attendance()
-                key = self.keypad.get_key(500)
+                key = self.keypad.get_key(500, feedback=False)
                 if key == "*":
                     self.manuel_attendance()
             else:
@@ -351,4 +362,4 @@ class NFCAttendance():
                 self.oled.rows[3] = ["bekleniyor", -1]
                 self.oled.rows[4] = ["", -1]
                 self.oled.show()
-                sleep_ms(60 * 60 * 5 * 1000)
+                sleep_ms(60 * 60 * 1 * 1000)  # wait 1 min

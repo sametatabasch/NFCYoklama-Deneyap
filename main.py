@@ -9,7 +9,7 @@ try:
     oled.rows[1] = ["GençBilişim", -1]
     oled.rows[3] = ["NFC Yoklama", -1]
     oled.rows[5] = ["Başlatılıyor", -1]
-    oled.show(Startup=True)
+    oled.show(startup=True)
     connect_wifi()
     set_time()
     sleep(1)
