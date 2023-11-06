@@ -1,7 +1,9 @@
 from machine import Pin
 from time import sleep, ticks_ms, ticks_diff
-import deneyap,config
+import config
+from Buzzer import Buzzer
 
+buzzer= Buzzer(config.Buzzer.get("pin"))
 
 class Keypad:
 
@@ -44,7 +46,7 @@ class Keypad:
                 if self.col_pins[col].value() == 1:
                     print("You have pressed:", self.matrix_keys[row][col])
                     self.pressed_key = self.matrix_keys[row][col]
-                    sleep(0.5)
+                    sleep(0.3)
                     return
 
             self.row_pins[row].off()
@@ -61,6 +63,7 @@ class Keypad:
             self.scankeys()
         key = self.pressed_key
         self.pressed_key = None
+        buzzer.beep(_sleep=100)
         return key
 
     def get_keys(self, count: int, timeout: int = None):
