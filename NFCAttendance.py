@@ -155,7 +155,11 @@ class NFCAttendance:
                     "last_name": "",
                     "card_id": student_card_uid,
                     "student_number": student_number,
-                    "lessons": []
+                    "lessons": [
+                "BILP-113", "BILP-107.1", "BILP-107.2", "BILP-109", "BILP-114.1", "BILP-114.2", "BILP-105", "BILP-201",
+                "BILP-217", "BILP-213", "BILP-215", "BILP-207", "BILP-216", "BILP-213", "BILP-226", "BILP-209",
+                "BILP-116", "BILP-221", "BILP-108", "BILP-106", "BILP-219", "BILP-110"
+            ]
                 }
             }
             response = self.send_request(config.api_url + "/create_student", student_data)
