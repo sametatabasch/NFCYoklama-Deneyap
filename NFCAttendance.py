@@ -130,7 +130,8 @@ class NFCAttendance():
                     "name": "",
                     "last_name": "",
                     "card_id": student_card_uid,
-                    "student_number": student_number
+                    "student_number": student_number,
+                    "lessons":[]
                 }
             }
             response = self.send_request(config.api_url + "/create_student", student_data)
