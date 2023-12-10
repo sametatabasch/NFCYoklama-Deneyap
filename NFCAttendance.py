@@ -9,10 +9,32 @@ from Display import Oled
 from Keypad import Keypad
 from Buzzer import Buzzer
 
+from NFCAttendanceError import NFCAttendanceError
+
 wlan = None
 
 
-class NFCAttendance():
+def handle_error(error):
+    print("-" * 20)
+    error_name = type(error).__name__
+    if error_name == "OSError":
+        print(error_name, "hatası")
+        print("Hata Kodu :", error.errno)
+        import sys
+        sys.print_exception(error)
+    elif error_name == "NFCAttendanceError":
+        error.show_error()
+        import sys
+        sys.print_exception(error)
+    else:
+        print(error_name, "hatası")
+        print("Hata bilgileri:", error.args)
+        import sys
+        sys.print_exception(error)
+    print("-" * 20)
+
+
+class NFCAttendance:
     """
     NFC kullanarak yoklama alma işlermleri
     """
@@ -27,7 +49,7 @@ class NFCAttendance():
         self.NFC = NFC()
         self.oled = Oled()
         self.keypad = Keypad()
-        self.buzzer = Buzzer(config.Buzzer.get("pin"))
+        self.buzzer = Buzzer()
 
         self.get_access_key()
         # start waiting
@@ -51,18 +73,13 @@ class NFCAttendance():
                 if response.status_code == 401:
                     print("401 Kimlik Hatası")
                     self.get_access_key()
+                    sleep_ms(1000)
                     return self.send_request(url, data)
                 return response
             else:
-                self.oled.rows[2] = ["Sunucu", -1]
-                self.oled.rows[3] = ["Bağlantı", -1]
-                self.oled.rows[4] = ["Hatası", -1]
-                self.oled.show()
-                raise Exception("Sunucu ile Bağlantı kurulamadı")
-        except Exception as e:
-            # todo bağlantı hatası olduğunda send request fonksiyonunu kullanan tüm fonksiyonlarda ne şekilde davranılacağı belirlenmeli
-            print("Bağlantı Hatası")
-            print(e)
+                raise NFCAttendanceError(1)
+        except Exception as error:
+            handle_error(error)
             return False
 
     def get_access_key(self):
@@ -70,20 +87,26 @@ class NFCAttendance():
         Access key expire in one day. İf self.ACCESS_KEY = None get new access key
         :return:
         """
-        if not self.ACCESS_KEY:
-            data = {
-                "username": config.api_username,
-                "password": config.api_passwd
-            }
-            url = config.api_url + "/login"
+        try:
+            if not self.ACCESS_KEY:
+                data = {
+                    "username": config.api_username,
+                    "password": config.api_passwd
+                }
+                url = config.api_url + "/login"
 
-            response = self.send_request(url, data)
-
-            if response.status_code == 200:
-                self.ACCESS_KEY = response.json()['access_token']
-            else:
-                print("İstek başarısız!")
-                return False
+                response = self.send_request(url, data)
+                if response:
+                    if response.status_code == 200:
+                        self.ACCESS_KEY = response.json()['access_token']
+                        response.close()
+                    else:
+                        print("İstek başarısız!")
+                        raise NFCAttendanceError(2)
+                else:
+                    raise NFCAttendanceError(1)
+        except Exception as error:
+            handle_error(error)
 
     def get_schedule(self):
         self.oled.rows[2] = ["Program icin", -1]
@@ -104,6 +127,7 @@ class NFCAttendance():
             response = self.send_request(config.api_url + "/get_schedule", data)
             if response.status_code == 200:
                 response_data = response.json()
+                response.close()
                 self.oled.rows[2] = [response_data["name"], -1]
                 self.oled.rows[3] = [response_data["last_name"], -1]
                 self.oled.rows[4] = ["Programi Alindi", -1]
@@ -131,12 +155,13 @@ class NFCAttendance():
                     "last_name": "",
                     "card_id": student_card_uid,
                     "student_number": student_number,
-                    "lessons":[]
+                    "lessons": []
                 }
             }
             response = self.send_request(config.api_url + "/create_student", student_data)
             if response.status_code == 200:
                 response_data = response.json()
+                response.close()
                 student = response_data['student']
                 if student and student["student_number"] is not None:
                     print("student_number=", student["student_number"])
@@ -203,22 +228,6 @@ class NFCAttendance():
             self.oled.rows[0] = ["", -1]  # clear lesson name
             return False
 
-    def get_student(self, student_data: dict):
-        self.oled.rows[2] = ["Öğrenci Kontrol", -1]
-        self.oled.rows[3] = ["Ediliyor", -1]
-        self.oled.rows[4] = ["", -1]
-        self.oled.show()
-        sleep_ms(1000)
-        response = self.send_request(config.api_url + "/get_student", student_data)
-        if response.status_code == 200:
-            return response.json().get('student')
-        else:
-            print("Öğrenci bilgileir alınırken sorun oldu")
-            print(response)
-            print(response.json())
-            print(student_data)
-            return False
-
     def card_attendance(self):
         try:
             self.oled.rows[2] = ["Yoklama", -1]
@@ -283,63 +292,80 @@ class NFCAttendance():
     def save_attendance(self, student_data):
         print("save_attendance")
         try:
-            student = self.get_student(student_data)
-            if student:
-                if self.current_lesson_code in student['lessons']:
-                    attendance_data = {
-                        "student_id": student['id'],
-                        "lesson_code": self.current_lesson_code,
-                        "start_hour": self.current_lesson_start_hour
-                    }
-                    response = self.send_request(config.api_url + "/take_attendance", attendance_data)
-                    if response.status_code == 200:
-                        self.buzzer.beep(count=2)
-                        self.oled.rows[2] = [student['name'], -1]
-                        self.oled.rows[3] = [student['last_name'], -1]
-                        self.oled.rows[4] = [student['student_number'], -1]
+            attendance_data = {
+                "student_card_id": student_data.get('card_id', None),
+                "lesson_code": self.current_lesson_code,
+                "start_hour": self.current_lesson_start_hour
+            }
+            self.oled.rows[2] = ["Kart", -1]
+            self.oled.rows[3] = ["KKontrol ", -1]
+            self.oled.rows[4] = ["Ediliyo", -1]
+            self.oled.show()
+            response = self.send_request(config.api_url + "/take_attendance", attendance_data)
+
+            if response.status_code == 200:
+                response_data = response.json()
+                print(response_data)
+                attendance_status = response_data.get("code")
+                print("status", attendance_status)
+                if attendance_status == 1:
+                    self.oled.rows[2] = ["Kayıtsız Öğrenci", -1]
+                    if student_data.get("card_id"):  # kartsız öğrenci
+                        self.oled.rows[3] = ["Kaydetmek için", -1]
+                        self.oled.rows[4] = ["A'ya basın", -1]
                         self.oled.show()
 
-                        sleep_ms(2000)  # sleep for showing student info
-                    elif response.status_code == 429:
-                        self.buzzer.beep(count=3, _sleep=150)
-                        self.oled.rows[2] = ["Zaten", -1]
-                        self.oled.rows[3] = ["Yoklama Kaydınız", -1]
-                        self.oled.rows[4] = ["Var", -1]
+                        # Buton 5 saniye içinde basılıp basılmadığını kontrol et
+                        key = self.keypad.get_key(5000)
+                        if key == 'A':
+                            if student_data.get("card_id") is not None:
+                                self.add_new_student(student_data['card_id'])
+                    else:
+                        self.oled.rows[3] = ["", -1]
+                        self.oled.rows[4] = ["", -1]
                         self.oled.show()
-
-                        sleep_ms(2000)  # sleep for showing student info
-                else:
+                        sleep_ms(1000)
+                elif attendance_status == 2:
+                    raise NFCAttendanceError(4)
+                elif attendance_status == 3:
                     self.buzzer.beep(count=3, _sleep=150)
                     self.oled.rows[2] = ["Derse", -1]
                     self.oled.rows[3] = ["Kaydınız", -1]
                     self.oled.rows[4] = ["Bununmuyor", -1]
                     self.oled.show()
                     sleep_ms(2000)  # sleep for showing student info
-            else:
-                self.oled.rows[2] = ["Kayıtsız Öğrenci", -1]
-                if student_data.get("card_id"):
-                    self.oled.rows[3] = ["Kaydetmek için", -1]
-                    self.oled.rows[4] = ["A'ya basın", -1]
+                elif attendance_status == 4:
+                    student = response_data.get("student")
+                    self.buzzer.beep(count=2)
+                    self.oled.rows[2] = [student['name'], -1]
+                    self.oled.rows[3] = [student['last_name'], -1]
+                    self.oled.rows[4] = [student['student_number'], -1]
                     self.oled.show()
-
-                    # Buton 5 saniye içinde basılıp basılmadığını kontrol et
-                    key = self.keypad.get_key(5000)
-                    if key == 'A':
-                        if student_data.get("card_id") is not None:
-                            self.add_new_student(student_data['card_id'])
+                    sleep_ms(2000)  # sleep for showing student info
                 else:
-                    self.oled.rows[3] = ["", -1]
-                    self.oled.rows[4] = ["", -1]
-                    self.oled.show()
-                    sleep_ms(1000)
+                    print("Status hatası")
+                    print(response_data)
+                    attendance_status = response_data.get("code")
+                    print("status", attendance_status)
+                    raise NFCAttendanceError(3)
+            elif response.status_code == 429:
+                self.buzzer.beep(count=3, _sleep=150)
+                self.oled.rows[2] = ["Zaten", -1]
+                self.oled.rows[3] = ["Yoklama Kaydınız", -1]
+                self.oled.rows[4] = ["Var", -1]
+                self.oled.show()
+
+                sleep_ms(2000)  # sleep for showing student info
+            else:
+                print("Response hatası")
+                print(response)
+                print(response.status_code)
+                print(response.json())
+                raise NFCAttendanceError(3)
+            response.close()
         except Exception as e:
             print("save_attendance hatası")
-            print(e.args)
-            self.oled.rows[2] = ["Bir Hata Oldu", -1]
-            self.oled.rows[3] = ["Tekrar", -1]
-            self.oled.rows[4] = ["Deneyin", -1]
-            self.oled.show()
-            sleep_ms(5000)
+            handle_error(e)
 
     def wait(self):
         """
@@ -349,17 +375,27 @@ class NFCAttendance():
         print("wait")
         self.buzzer.beep(count=4, _sleep=150)
         while not self.is_schedule_exist:
-            self.is_schedule_exist = self.get_schedule()
+            try:
+                self.is_schedule_exist = self.get_schedule()
+            except NFCAttendanceError as error:
+                self.handle_error(error)
+            except Exception as error:
+                self.handle_error(error)
         while True:
-            if self.check_lesson_time():
-                self.card_attendance()
-                key = self.keypad.get_key(500, feedback=False)
-                if key == "*":
-                    self.manuel_attendance()
-            else:
-                self.oled.rows[0] = ["", -1]
-                self.oled.rows[2] = ["Ders", -1]
-                self.oled.rows[3] = ["bekleniyor", -1]
-                self.oled.rows[4] = ["", -1]
-                self.oled.show()
-                sleep_ms(60 * 60 * 1 * 1000)  # wait 1 min
+            try:
+                if self.check_lesson_time():
+                    self.card_attendance()
+                    key = self.keypad.get_key(500, feedback=False)
+                    if key == "*":
+                        self.manuel_attendance()
+                else:
+                    self.oled.rows[0] = ["", -1]
+                    self.oled.rows[2] = ["Ders", -1]
+                    self.oled.rows[3] = ["bekleniyor", -1]
+                    self.oled.rows[4] = ["", -1]
+                    self.oled.show()
+                    sleep_ms(60 * 60 * 1 * 1000)  # wait 1 min
+            except NFCAttendanceError as error:
+                self.handle_error(error)
+            except Exception as error:
+                self.handle_error(error)
