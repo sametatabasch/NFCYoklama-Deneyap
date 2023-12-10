@@ -47,7 +47,7 @@ class Oled:
         :param msg: string to center
         :return int:
         """
-        return (self.width - len(msg) * 8) // 2 if msg is not None else ""
+        return (self.width - len(str(msg)) * 8) // 2 if msg is not None else ""
 
     def show(self, startup=False):
         """
@@ -86,7 +86,7 @@ class Oled:
             "Ü": "U"
         }
         if input_string is not None:
-            result = input_string
+            result = str(input_string)
             for turkish_char, english_char in replacements.items():
                 result = result.replace(turkish_char, english_char)
             return result
