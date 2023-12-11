@@ -156,10 +156,10 @@ class NFCAttendance:
                     "card_id": student_card_uid,
                     "student_number": student_number,
                     "lessons": [
-                "BILP-113", "BILP-107.1", "BILP-107.2", "BILP-109", "BILP-114.1", "BILP-114.2", "BILP-105", "BILP-201",
-                "BILP-217", "BILP-213", "BILP-215", "BILP-207", "BILP-216", "BILP-213", "BILP-226", "BILP-209",
-                "BILP-116", "BILP-221", "BILP-108", "BILP-106", "BILP-219", "BILP-110"
-            ]
+                        "BILP-113", "BILP-107.1", "BILP-107.2", "BILP-109", "BILP-114.1", "BILP-114.2", "BILP-105",
+                        "BILP-201", "BILP-217", "BILP-213", "BILP-215", "BILP-207", "BILP-216", "BILP-213", "BILP-226",
+                        "BILP-209", "BILP-116", "BILP-221", "BILP-108", "BILP-106", "BILP-219", "BILP-110"
+                    ]
                 }
             }
             response = self.send_request(config.api_url + "/create_student", student_data)
@@ -299,11 +299,12 @@ class NFCAttendance:
             attendance_data = {
                 "student_card_id": student_data.get('card_id', None),
                 "lesson_code": self.current_lesson_code,
-                "start_hour": self.current_lesson_start_hour
+                "start_hour": self.current_lesson_start_hour,
+                "student_number": student_data.get("student_number", None)
             }
             self.oled.rows[2] = ["Kart", -1]
-            self.oled.rows[3] = ["KKontrol ", -1]
-            self.oled.rows[4] = ["Ediliyo", -1]
+            self.oled.rows[3] = ["Kontrol ", -1]
+            self.oled.rows[4] = ["Ediliyor", -1]
             self.oled.show()
             response = self.send_request(config.api_url + "/take_attendance", attendance_data)
 
